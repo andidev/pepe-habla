@@ -3,3 +3,4 @@ images/sprites/
 __pycache__/
 *.pyc
 .superpowers/
+.DS_Store
