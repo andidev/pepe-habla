@@ -33,6 +33,10 @@ from PIL import Image, ImageFilter
 from scipy import ndimage
 
 SRC = Path('images/originals/pepe-hablas-icon.jpeg')
+# Android's themed icon is drawn from its own art. The colour original, reduced
+# to one tone, comes out washed and mushy at 48px; this black-and-white version
+# of the same pose was drawn in bold masses and survives the reduction.
+MONO_SRC = Path('images/originals/pepe-hablas-icon-black&white1.jpeg')
 OUT = Path('apps/app/assets')
 
 CREAM = (0xFB, 0xF6, 0xEC)      # colour.ground from theme.ts
@@ -58,9 +62,9 @@ IOS_ART = 0.88
 FACE_Y = 0.46
 
 
-def cutout() -> Image.Image:
+def cutout(path: Path = SRC) -> Image.Image:
     """The drawing on a transparent background, stray fragments dropped."""
-    src = Image.open(SRC).convert('RGB')
+    src = Image.open(path).convert('RGB')
     arr = np.array(src).astype(int)
 
     near_white = (arr > 255 - COLOUR_TOLERANCE).all(axis=2)
@@ -106,9 +110,8 @@ def monochrome(layer: Image.Image) -> Image.Image:
 
     A flat silhouette is an unreadable blob here -- hat, ears and face all
     merge into one shape. Android tints this layer and honours partial alpha,
-    so opacity is taken from how dark each pixel is: outlines, eyes and nose
-    stay solid while the sombrero and muzzle drop back, which keeps him
-    legible down to 48px.
+    so opacity is taken from how dark each pixel is, which keeps the hat brim,
+    eyes and muzzle legible down to 48px.
     """
     rgb = np.array(layer.convert('RGB')).astype(float)
     luminance = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
@@ -120,8 +123,9 @@ def monochrome(layer: Image.Image) -> Image.Image:
 
 
 def main() -> None:
-    if not SRC.exists():
-        sys.exit(f'missing source art: {SRC}')
+    for path in (SRC, MONO_SRC):
+        if not path.exists():
+            sys.exit(f'missing source art: {path}')
     art = cutout()
 
     ios = on(CREAM, place(art, IOS_ART)).convert('RGB')
@@ -130,7 +134,7 @@ def main() -> None:
 
     foreground = place(art, ANDROID_ART)
     foreground.save(OUT / 'android-icon-foreground.png')
-    monochrome(foreground).save(OUT / 'android-icon-monochrome.png')
+    monochrome(place(cutout(MONO_SRC), ANDROID_ART)).save(OUT / 'android-icon-monochrome.png')
     Image.new('RGB', (SIZE, SIZE), CREAM).save(OUT / 'android-icon-background.png')
 
     check()
