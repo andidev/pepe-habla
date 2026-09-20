@@ -9,7 +9,10 @@ What each platform needs, and why the compositions differ:
 
   iOS      `icon.png` must be fully opaque -- alpha is flattened or rejected at
            submission -- and iOS only rounds the corners, so the drawing can
-           nearly fill the tile.
+           nearly fill the tile. iOS 18 also takes dark and tinted variants:
+           prebuild keeps alpha on the dark one (the system supplies the dark
+           backdrop) and flattens the other two onto white, so the tinted one
+           is rendered opaque and greyscale for iOS to map through its tint.
 
   Android  the adaptive icon is two layers: a transparent foreground over a
            flat background. Only the central 72 of the 108dp canvas is ever
@@ -41,6 +44,7 @@ OUT = Path('apps/app/assets')
 
 CREAM = (0xFB, 0xF6, 0xEC)      # colour.ground from theme.ts
 INK = (0x1C, 0x17, 0x14)        # colour.ink
+WHITE = (0xFF, 0xFF, 0xFF)      # what prebuild flattens light and tinted onto
 
 SIZE = 1024
 # How close to white still counts as background.
@@ -122,15 +126,27 @@ def monochrome(layer: Image.Image) -> Image.Image:
     return flat
 
 
+def greyscale(layer: Image.Image) -> Image.Image:
+    """Flat greyscale, which is what iOS maps through its tint."""
+    rgb = np.array(layer.convert('RGB')).astype(float)
+    luminance = 0.299 * rgb[:, :, 0] + 0.587 * rgb[:, :, 1] + 0.114 * rgb[:, :, 2]
+    return Image.fromarray(np.clip(luminance, 0, 255).astype(np.uint8)).convert('RGB')
+
+
 def main() -> None:
     for path in (SRC, MONO_SRC):
         if not path.exists():
             sys.exit(f'missing source art: {path}')
     art = cutout()
 
-    ios = on(CREAM, place(art, IOS_ART)).convert('RGB')
+    full = place(art, IOS_ART)
+    ios = on(CREAM, full).convert('RGB')
     ios.save(OUT / 'icon.png')
     ios.resize((48, 48), Image.LANCZOS).save(OUT / 'favicon.png')
+    # Transparent on purpose: prebuild preserves alpha here and iOS draws its
+    # own dark backdrop behind it.
+    full.save(OUT / 'icon-dark.png')
+    greyscale(on(WHITE, place(cutout(MONO_SRC), IOS_ART))).save(OUT / 'icon-tinted.png')
 
     foreground = place(art, ANDROID_ART)
     foreground.save(OUT / 'android-icon-foreground.png')
@@ -142,15 +158,20 @@ def main() -> None:
 
 def check() -> None:
     """Fail loudly rather than shipping an icon the store will bounce."""
-    icon = Image.open(OUT / 'icon.png')
-    assert icon.size == (SIZE, SIZE), icon.size
-    assert icon.mode == 'RGB', f'iOS icon must be opaque, got {icon.mode}'
+    for name in ('icon.png', 'icon-tinted.png'):
+        icon = Image.open(OUT / name)
+        assert icon.size == (SIZE, SIZE), (name, icon.size)
+        assert icon.mode == 'RGB', f'{name} must be opaque, got {icon.mode}'
+    darkicon = Image.open(OUT / 'icon-dark.png')
+    assert darkicon.mode == 'RGBA', f'dark icon must keep alpha, got {darkicon.mode}'
+    assert darkicon.getchannel('A').getextrema()[0] == 0, 'dark icon has no transparency'
     for name in ('android-icon-foreground.png', 'android-icon-monochrome.png'):
         layer = Image.open(OUT / name)
         assert layer.size == (SIZE, SIZE), (name, layer.size)
         assert layer.mode == 'RGBA', f'{name} must carry alpha, got {layer.mode}'
         assert layer.getchannel('A').getextrema()[0] == 0, f'{name} has no transparent pixels'
-    print('wrote icon.png, favicon.png, android-icon-{foreground,monochrome,background}.png')
+    print('wrote icon{,-dark,-tinted}.png, favicon.png, '
+          'android-icon-{foreground,monochrome,background}.png')
 
 
 if __name__ == '__main__':
