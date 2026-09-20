@@ -77,6 +77,10 @@ export function reduce(state: SessionState, event: SessionEvent): SessionState {
     case 'next':
       return advance(state);
     case 'anotherRound':
+      // Only from the summary. Accepting it mid-round would discard the repair
+      // queue without a trace, and accepting it after `finish` would make a
+      // finished session un-finish itself.
+      if (state.phase !== 'summary') return state;
       return {
         ...state,
         round: state.round + 1,

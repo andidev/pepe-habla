@@ -144,6 +144,32 @@ describe('another round', () => {
     assert.deepEqual(roundScore(s), { right: 0, total: 1 });
     assert.deepEqual(sessionScore(s), { right: 1, total: 2 });
   });
+
+  test('is ignored mid-repair, so pending repairs are never silently dropped', () => {
+    const qs = [q('a'), q('b')];
+    let s = startSession(qs);
+    s = reduce(s, wrong());            // miss a
+    s = reduce(s, next());
+    s = reduce(s, right(qs[1]!));      // get b
+    s = reduce(s, next());             // -> repairing
+    assert.equal(s.phase, 'repairing');
+
+    const before = { phase: s.phase, repair: s.repair, round: s.round };
+    s = reduce(s, { type: 'anotherRound', questions: [q('c'), q('d')] });
+    assert.deepEqual(s.phase, before.phase, 'should stay repairing');
+    assert.deepEqual(s.repair, before.repair, 'repair queue must be preserved');
+    assert.equal(s.round, before.round, 'round must not change');
+  });
+
+  test('is ignored after finishing, so finished is terminal', () => {
+    const s = reduce(startSession([q('a')]), { type: 'finish' });
+    assert.equal(s.phase, 'finished');
+
+    const before = s.phase;
+    const s2 = reduce(s, { type: 'anotherRound', questions: [q('b')] });
+    assert.equal(s2.phase, before, 'should stay finished');
+    assert.equal(s2.round, 1, 'round must not change');
+  });
 });
 
 describe('finishing', () => {
