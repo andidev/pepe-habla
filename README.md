@@ -1,6 +1,7 @@
-# Spanish
+# Pepe Habla
 
-A vocabulary trainer with Leitner scheduling. Mexican Spanish, English glosses.
+A Spanish vocabulary trainer, named after Pepe, a street dog from Mexico who
+is the app's mascot. Mexican Spanish, English glosses, Leitner scheduling.
 
 ## Practising
 

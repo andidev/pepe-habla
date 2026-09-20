@@ -9,7 +9,7 @@ import { emptyDb } from './store.ts';
 let root: string;
 
 before(async () => {
-  root = await mkdtemp(join(tmpdir(), 'spanish-test-'));
+  root = await mkdtemp(join(tmpdir(), 'pepe-habla-test-'));
   await mkdir(join(root, 'data', 'seed'), { recursive: true });
 });
 
