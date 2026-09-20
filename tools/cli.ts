@@ -1,19 +1,16 @@
 /**
  * Session driver. Claude runs these commands; a human can too.
  *
- *   node src/cli.ts pick [count]           today's words, as JSON questions
- *   node src/cli.ts answer ser:1 ir:0 ...  record results (1 = right, 0 = wrong)
- *   node src/cli.ts stats                  where you stand
+ *   node tools/cli.ts pick [count]           today's words, as JSON questions
+ *   node tools/cli.ts answer ser:1 ir:0 ...  record results (1 = right, 0 = wrong)
+ *   node tools/cli.ts stats                  where you stand
  *
- * All the interesting logic lives in src/core. This file is just plumbing.
+ * All the interesting logic lives in @pepe/core. This file is just plumbing.
  */
-import { buildQuestions } from './core/quiz.ts';
-import { selectDaily } from './core/select.ts';
-import { applyAnswer, freshProgress, isDue, INTERVALS } from './core/leitner.ts';
-import { mulberry32, seedFromDate } from './core/rng.ts';
-import { todayISO } from './core/dates.ts';
-import type { Box, Progress } from './core/types.ts';
-import { fileStore, projectRoot } from './storage/fileStore.ts';
+import { buildQuestions, selectDaily, applyAnswer, freshProgress, isDue, INTERVALS,
+         mulberry32, seedFromDate, todayISO } from '@pepe/core';
+import type { Box, Progress } from '@pepe/core';
+import { fileStore, projectRoot } from './store/fileStore.ts';
 
 const DAILY_COUNT = 10;
 const store = fileStore(projectRoot);
@@ -108,6 +105,6 @@ switch (cmd) {
     await stats();
     break;
   default:
-    console.error('Usage: node src/cli.ts <pick [count] | answer id:1 id:0 ... | stats>');
+    console.error('Usage: node tools/cli.ts <pick [count] | answer id:1 id:0 ... | stats>');
     process.exit(1);
 }

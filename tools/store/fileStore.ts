@@ -1,6 +1,6 @@
 import { readFile, writeFile, readdir, mkdir, appendFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { VocabDb, Word } from '../core/types.ts';
+import type { VocabDb, Word } from '@pepe/core';
 import { emptyDb, type VocabStore } from './store.ts';
 
 /** The Node adapter: seed files on disk, progress in data/vocab.json, logs in log/. */

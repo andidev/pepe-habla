@@ -1,4 +1,4 @@
-import type { VocabDb, Word } from '../core/types.ts';
+import type { VocabDb, Word } from '@pepe/core';
 
 /**
  * Everything the trainer needs from the outside world.
