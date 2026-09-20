@@ -69,15 +69,13 @@ export function cue(name: CueName): void {
   if (muted) return;
   const player = players[name];
   if (!player) return;
-  attempt(() => { player.seekTo(0); player.play(); });
+  attempt(() => player.seekTo(0).then(() => player.play()));
 }
 
 export function speak(spanish: string): void {
   if (muted) return;
-  attempt(() => {
-    Speech.stop();
-    Speech.speak(spanish, { language: 'es-MX', rate: 0.95, pitch: 1.0 });
-  });
+  attempt(() => Speech.stop().then(() =>
+    Speech.speak(spanish, { language: 'es-MX', rate: 0.95, pitch: 1.0 })));
 }
 
 export function stopSpeaking(): void {
