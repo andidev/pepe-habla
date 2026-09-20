@@ -27,7 +27,7 @@ MIN_AREA_FRACTION = 0.0015
 COLOUR_TOLERANCE = 26
 # Grow the foreground by this much before labelling, so a dog and the taco it
 # is holding merge into one drawing instead of two.
-DILATION = 7
+DILATION = 3
 PADDING = 12
 
 
@@ -45,19 +45,65 @@ def background_mask(rgb: np.ndarray) -> np.ndarray:
     return np.isin(labels, list(outer))
 
 
-def find_drawings(fg: np.ndarray, total: int) -> list[tuple[slice, slice]]:
+def find_drawings(fg: np.ndarray, total: int) -> list[tuple[tuple[slice, slice], np.ndarray]]:
+    """Return each drawing's crop box together with its label's own pixel mask.
+
+    Carrying the mask (rather than just the box) lets `cut` blank out any pixel
+    inside the padded crop rectangle that actually belongs to a *different*
+    drawing — two dogs sitting a few pixels apart can have overlapping padded
+    boxes without ever being the same blob, and a fixed pixel padding would
+    otherwise bleed a sliver of the neighbour into both crops.
+    """
     grown = ndimage.binary_dilation(fg, np.ones((DILATION, DILATION), bool))
     labels, count = ndimage.label(grown)
+
     boxes = []
     for i, sl in enumerate(ndimage.find_objects(labels), start=1):
-        if (labels[sl] == i).sum() >= total * MIN_AREA_FRACTION:
-            boxes.append(sl)
-    # Reading order: top to bottom, then left to right, in rough rows.
-    boxes.sort(key=lambda s: (round(s[0].start / 60), s[1].start))
+        filled = int((labels[sl] == i).sum())
+        if filled < total * MIN_AREA_FRACTION:
+            continue
+        area = (sl[0].stop - sl[0].start) * (sl[1].stop - sl[1].start)
+        member = labels == i
+        # Two drawings bridged by a whisker fill very little of their shared box.
+        if filled / area < 0.22:
+            boxes.extend((sub_sl, member) for sub_sl in _split(member, sl))
+        else:
+            boxes.append((sl, member))
+
+    boxes.sort(key=lambda b: (round(b[0][0].start / 60), b[0][1].start))
     return boxes
 
 
-def cut(img: Image.Image, sl, rgb: np.ndarray) -> Image.Image:
+def _split(mask: np.ndarray, sl) -> list[tuple[slice, slice]]:
+    """Cut a merged blob at its emptiest row or column."""
+    sub = mask[sl]
+    rows = sub.sum(axis=1)
+    cols = sub.sum(axis=0)
+    # Prefer whichever axis has a clear gap nearer its middle.
+    best = None
+    for axis, profile in ((0, rows), (1, cols)):
+        mid = len(profile) // 2
+        window = range(int(len(profile) * 0.25), int(len(profile) * 0.75))
+        if not window:
+            continue
+        cut = min(window, key=lambda i: (profile[i], abs(i - mid)))
+        if profile[cut] <= profile.max() * 0.05:
+            score = abs(cut - mid)
+            if best is None or score < best[0]:
+                best = (score, axis, cut)
+    if best is None:
+        return [sl]
+
+    _, axis, cut = best
+    ys, xs = sl
+    if axis == 0:
+        return [(slice(ys.start, ys.start + cut), xs),
+                (slice(ys.start + cut, ys.stop), xs)]
+    return [(ys, slice(xs.start, xs.start + cut)),
+            (ys, slice(xs.start + cut, xs.stop))]
+
+
+def cut(img: Image.Image, sl, rgb: np.ndarray, member: np.ndarray) -> Image.Image:
     ys, xs = sl
     top = max(ys.start - PADDING, 0)
     left = max(xs.start - PADDING, 0)
@@ -67,9 +113,12 @@ def cut(img: Image.Image, sl, rgb: np.ndarray) -> Image.Image:
     crop = img.crop((left, top, right, bottom)).convert('RGBA')
     # Re-derive the background within this crop so interior whites survive.
     local_bg = background_mask(rgb[top:bottom, left:right])
-    alpha = np.array(crop)[:, :, 3]
-    alpha[local_bg] = 0
     out = np.array(crop)
+    alpha = out[:, :, 3]
+    alpha[local_bg] = 0
+    # A neighbouring drawing can poke into the padding margin without ever
+    # touching this blob; keep only pixels that are actually this drawing's own.
+    alpha[~member[top:bottom, left:right]] = 0
     out[:, :, 3] = alpha
     return Image.fromarray(out)
 
@@ -83,8 +132,8 @@ def main(sheet: Path, out_dir: Path) -> None:
     stem = sheet.stem[:8]
     boxes = find_drawings(fg, rgb.shape[0] * rgb.shape[1])
 
-    for n, sl in enumerate(boxes, start=1):
-        sprite = cut(img, sl, rgb)
+    for n, (sl, member) in enumerate(boxes, start=1):
+        sprite = cut(img, sl, rgb, member)
         path = out_dir / f'{stem}-{n:02d}.png'
         sprite.save(path)
         print(f'{path.name}  {sprite.width}x{sprite.height}')
@@ -94,26 +143,3 @@ def main(sheet: Path, out_dir: Path) -> None:
 
 if __name__ == '__main__':
     main(Path(sys.argv[1]), Path(sys.argv[2]))
-
-
-def drop_edge_bleed(img: Image.Image, min_share: float = 0.05) -> Image.Image:
-    """Remove fragments of neighbouring drawings that bled into the crop.
-
-    A real prop (the football, the salsa bowl) sits inside the frame. A fragment
-    of the drawing next door is both small and touching the crop edge, so that
-    pair of conditions targets the bleed without eating anything wanted.
-    """
-    a = np.array(img)
-    labels, n = ndimage.label(a[:, :, 3] > 8)
-    if n <= 1:
-        return img
-
-    sizes = ndimage.sum(np.ones_like(labels), labels, range(1, n + 1))
-    biggest = sizes.max()
-    border = set(np.unique(np.concatenate(
-        [labels[0, :], labels[-1, :], labels[:, 0], labels[:, -1]]))) - {0}
-
-    for i in range(1, n + 1):
-        if i in border and sizes[i - 1] < biggest * min_share:
-            a[labels == i, 3] = 0
-    return Image.fromarray(a)
