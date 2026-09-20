@@ -1,2 +1,5 @@
 node_modules/
 images/sprites/
+__pycache__/
+*.pyc
+.superpowers/
