@@ -7,7 +7,7 @@
   "description": "A Spanish vocabulary trainer. Core logic is platform-agnostic.",
   "scripts": {
     "test": "node --test 'packages/core/src/**/*.test.ts' 'tools/**/*.test.ts'",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/app",
     "practice": "node tools/cli.ts",
     "sprites": "python3 tools/extract_sprites.py",
     "sounds": "python3 tools/make_sounds.py apps/app/assets/audio/"
