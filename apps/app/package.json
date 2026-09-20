@@ -8,6 +8,7 @@
     "@expo/metro-runtime": "~57.0.16",
     "@expo/ui": "~57.0.19",
     "@pepe/core": "*",
+    "@react-native-async-storage/async-storage": "2.2.0",
     "expo": "~57.0.24",
     "expo-constants": "~57.0.19",
     "expo-font": "~57.0.4",

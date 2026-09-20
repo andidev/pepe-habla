@@ -1,0 +1,48 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { applyAnswer, freshProgress, type VocabDb } from '@pepe/core';
+import type { AnswerRecord } from '@pepe/core';
+import seededProgress from '../../../data/vocab.json';
+
+const KEY = 'pepe-habla/progress/v1';
+
+/**
+ * Progress lives on the phone. The repo's data/vocab.json seeds the very first
+ * launch so the words already practised on the CLI are not thrown away; after
+ * that the phone is the only source of truth.
+ */
+export async function loadProgress(): Promise<VocabDb> {
+  const raw = await AsyncStorage.getItem(KEY);
+  if (raw !== null) {
+    try {
+      return JSON.parse(raw) as VocabDb;
+    } catch {
+      // A corrupt blob should cost you your history, not the app.
+      return seededProgress as VocabDb;
+    }
+  }
+  return seededProgress as VocabDb;
+}
+
+export async function saveProgress(db: VocabDb): Promise<void> {
+  await AsyncStorage.setItem(KEY, JSON.stringify(db));
+}
+
+/**
+ * Fold a round's answers into progress.
+ *
+ * Called at round boundaries rather than per answer: at full vocabulary size
+ * the blob is several hundred kilobytes, and rewriting it after every tap
+ * would stutter the animations.
+ */
+export function recordAnswers(
+  db: VocabDb,
+  records: readonly AnswerRecord[],
+  today: string,
+): VocabDb {
+  const progress = { ...db.progress };
+  for (const record of records) {
+    const before = progress[record.wordId] ?? freshProgress(record.wordId, today);
+    progress[record.wordId] = applyAnswer(before, record.correct, today);
+  }
+  return { ...db, progress };
+}
