@@ -100,7 +100,6 @@ rmdir src/core src/storage src 2>/dev/null || true
 
 ```bash
 sed -i '' "s|from '../core/types.ts'|from '@pepe/core'|" tools/store/store.ts tools/store/fileStore.ts
-sed -i '' "s|from './core/|from '@pepe/core'; // |" /dev/null 2>/dev/null || true
 ```
 
 Then edit `tools/cli.ts` by hand. Replace its four core imports:
