@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildQuestions, grade, optionMeaning } from './quiz.ts';
+import { buildQuestions, grade } from './quiz.ts';
 import { mulberry32 } from './rng.ts';
 import type { PartOfSpeech, Word } from './types.ts';
 
@@ -157,29 +157,5 @@ describe('grade', () => {
   });
   test('a different answer is wrong', () => {
     assert.equal(grade('the hat', 'the coat'), false);
-  });
-});
-
-describe('optionMeaning', () => {
-  const words = [word('a'), word('b')];
-
-  test('finds what a Spanish option means when answering in Spanish', () => {
-    assert.equal(optionMeaning('en->es', 'es-a', words), 'en-a');
-  });
-
-  test('finds what an English option means when answering in English', () => {
-    assert.equal(optionMeaning('es->en', 'en-b', words), 'es-b');
-  });
-
-  test('treats a picture question as answered in Spanish', () => {
-    assert.equal(optionMeaning('picture->es', 'es-a', words), 'en-a');
-  });
-
-  test('treats a listening question as answered in English', () => {
-    assert.equal(optionMeaning('listen->en', 'en-a', words), 'es-a');
-  });
-
-  test('returns null for an option that is not in the pool', () => {
-    assert.equal(optionMeaning('es->en', 'nonsense', words), null);
   });
 });

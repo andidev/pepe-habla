@@ -98,26 +98,6 @@ export function buildQuestions(
   });
 }
 
-/**
- * What the tapped option actually meant.
- *
- * A wrong answer is a chance to learn two words rather than none: the correct
- * one, and the one you reached for instead. Every distractor is a real word
- * from the learner's own vocabulary, so the gloss is already available.
- */
-export function optionMeaning(
-  direction: Direction,
-  option: string,
-  pool: readonly Word[],
-): string | null {
-  for (const w of pool) {
-    if (solve(w, direction) === option) {
-      return answersInEnglish(direction) ? w.es : w.en;
-    }
-  }
-  return null;
-}
-
 export function grade(given: string, answer: string): boolean {
   const norm = (s: string) => s.trim().toLowerCase();
   return norm(given) === norm(answer);

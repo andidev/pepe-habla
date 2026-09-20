@@ -78,7 +78,7 @@ export default function Session() {
   // Speak listening questions as soon as they appear, and reset the clock.
   useEffect(() => {
     shownAt.current = Date.now();
-    if (question && question.direction === 'listen->en') speak(question.word.es);
+    if (question && question.direction === 'listen->en') speak(question.word);
   }, [question?.word.id, state?.phase === 'asking']);
 
   const meaning = useMemo(() => {
@@ -104,7 +104,7 @@ export default function Session() {
     const ms = Date.now() - shownAt.current;
     const hit = option === question.answer;
     cue(hit ? 'correct' : 'wrong');
-    if (!hit) speak(question.word.es);      // hear the right word after a miss
+    if (!hit) speak(question.word);      // hear the right word after a miss
     setState(reduce(state, { type: 'answer', option, ms }));
   };
 
@@ -137,13 +137,13 @@ export default function Session() {
               <Image source={VOCAB_ART[question.promptImage]} style={{ width: 190, height: 190 }} resizeMode="contain" />
             </View>
           ) : question.direction === 'listen->en' ? (
-            <Speaker big onPress={() => speak(question.word.es)} />
+            <Speaker big onPress={() => speak(question.word)} />
           ) : (
             <View style={{ alignItems: 'center', gap: 14 }}>
               <Text style={{ fontFamily: font.displayHeavy, fontSize: 44, color: colour.ink, textAlign: 'center' }}>
                 {question.prompt}
               </Text>
-              {question.direction === 'es->en' && <Speaker onPress={() => speak(question.word.es)} />}
+              {question.direction === 'es->en' && <Speaker onPress={() => speak(question.word)} />}
             </View>
           )}
         </View>
