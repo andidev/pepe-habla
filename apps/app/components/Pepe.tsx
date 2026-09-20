@@ -56,13 +56,13 @@ export function Pepe({ pose, motion = 'breathe', size }: Props) {
       );
       squashY.value = withSequence(
         withTiming(1.09, { duration: 140 }),
-        withTiming(0.93, { duration: 110 }),
-        withTiming(1, { duration: 370 }),
+        withTiming(0.93, { duration: 160 }),
+        withTiming(1, { duration: 320 }),
       );
       squashX.value = withSequence(
         withTiming(0.93, { duration: 140 }),
-        withTiming(1.07, { duration: 110 }),
-        withTiming(1, { duration: 370 }),
+        withTiming(1.07, { duration: 160 }),
+        withTiming(1, { duration: 320 }),
       );
     }
 
@@ -91,6 +91,13 @@ export function Pepe({ pose, motion = 'breathe', size }: Props) {
           withTiming(-1.5, { duration: 575, easing: ease }),
         ), -1, false);
     }
+
+    return () => {
+      cancelAnimation(lift);
+      cancelAnimation(squashX);
+      cancelAnimation(squashY);
+      cancelAnimation(tilt);
+    };
   }, [motion, pose]);
 
   const style = useAnimatedStyle(() => ({
