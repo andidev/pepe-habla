@@ -16,4 +16,9 @@ config.resolver.nodeModulesPaths = [
 // Core is TypeScript source with explicit .ts import extensions.
 config.resolver.disableHierarchicalLookup = true;
 
+// Pronunciation recordings ship as AAC.
+if (!config.resolver.assetExts.includes('m4a')) {
+  config.resolver.assetExts.push('m4a');
+}
+
 module.exports = config;

@@ -1,6 +1,7 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { RECORDINGS } from './storage/speech';
 
 export type CueName = 'tap' | 'correct' | 'wrong' | 'complete' | 'streak' | 'levelup';
 
@@ -72,10 +73,75 @@ export function cue(name: CueName): void {
   attempt(() => player.seekTo(0).then(() => player.play()));
 }
 
-export function speak(spanish: string): void {
+/**
+ * Pronunciation, best source first.
+ *
+ * 1. A bundled recording — identical on every device, offline.
+ * 2. Device speech with an explicitly chosen Mexican voice.
+ * 3. The nearest Spanish voice the device has.
+ * 4. Silence.
+ *
+ * Step 4 is deliberate: a device with no Spanish voice will happily read
+ * Spanish with an English mouth, and teaching a wrong pronunciation is worse
+ * than teaching none.
+ */
+let spanishVoice: string | null = null;
+let voicesChecked = false;
+let wordPlayer: AudioPlayer | null = null;
+
+function rankVoice(v: { language: string; identifier: string }): number {
+  const lang = v.language.toLowerCase().replace('_', '-');
+  if (lang.startsWith('es-mx')) return 100;
+  if (lang.startsWith('es-419') || /^es-(ar|co|cl|pe|us)/.test(lang)) return 60;
+  if (lang.startsWith('es')) return 30;
+  return 0;
+}
+
+/** Called once at startup, after prepareAudio. */
+export async function prepareSpeech(): Promise<void> {
+  try {
+    const all = await Speech.getAvailableVoicesAsync();
+    const best = all
+      .map((v) => ({ v, score: rankVoice(v) }))
+      .filter((x) => x.score > 0)
+      .sort((a, b) => b.score - a.score)[0];
+    spanishVoice = best ? best.v.identifier : null;
+  } catch {
+    spanishVoice = null;
+  } finally {
+    voicesChecked = true;
+  }
+}
+
+/** False when this device can neither play a recording nor speak Spanish. */
+export function canSpeak(word?: { id: string }): boolean {
+  if (word && RECORDINGS[word.id] !== undefined) return true;
+  return !voicesChecked || spanishVoice !== null;
+}
+
+export function speak(word: { id: string; es: string }): void {
   if (muted) return;
-  attempt(() => Speech.stop().then(() =>
-    Speech.speak(spanish, { language: 'es-MX', rate: 0.95, pitch: 1.0 })));
+
+  const recording = RECORDINGS[word.id];
+  if (recording !== undefined) {
+    attempt(() => {
+      if (wordPlayer === null) {
+        wordPlayer = createAudioPlayer(recording);
+      } else {
+        wordPlayer.replace(recording);      // one player for all 384 words
+      }
+      return wordPlayer.seekTo(0).then(() => wordPlayer?.play());
+    });
+    return;
+  }
+
+  if (voicesChecked && spanishVoice === null) return;   // never an English mouth
+  attempt(() => Speech.stop().then(() => Speech.speak(word.es, {
+    language: 'es-MX',
+    rate: 0.95,
+    pitch: 1.0,
+    ...(spanishVoice ? { voice: spanishVoice } : {}),
+  })));
 }
 
 export function stopSpeaking(): void {

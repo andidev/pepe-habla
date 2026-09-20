@@ -7,7 +7,7 @@ import { Figtree_600SemiBold, Figtree_800ExtraBold } from '@expo-google-fonts/fi
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { prepareAudio } from '../feedback';
+import { prepareAudio, prepareSpeech } from '../feedback';
 import { colour } from '../theme';
 
 export default function RootLayout() {
@@ -16,7 +16,7 @@ export default function RootLayout() {
     Figtree_600SemiBold, Figtree_800ExtraBold,
   });
 
-  useEffect(() => { void prepareAudio(); }, []);
+  useEffect(() => { void prepareAudio(); void prepareSpeech(); }, []);
 
   if (!ready) return null;
 
