@@ -3,15 +3,51 @@ import { shuffle } from './rng.ts';
 
 const OPTIONS_PER_QUESTION = 4;
 
-const show = (w: Word, d: Direction): string => (d === 'es->en' ? w.es : w.en);
-const solve = (w: Word, d: Direction): string => (d === 'es->en' ? w.en : w.es);
+/** Which language the learner answers in. */
+const answersInEnglish = (d: Direction): boolean =>
+  d === 'es->en' || d === 'listen->en';
 
-/** Half the questions each way, in a shuffled order. */
-function directionsFor(n: number, rng: Rng): Direction[] {
-  const dirs: Direction[] = Array.from({ length: n }, (_, i) =>
-    i % 2 === 0 ? 'es->en' : 'en->es',
-  );
-  return shuffle(dirs, rng);
+const solve = (w: Word, d: Direction): string =>
+  answersInEnglish(d) ? w.en : w.es;
+
+const show = (w: Word, d: Direction): string => {
+  if (d === 'picture->es') return '';        // the art is the prompt
+  return d === 'en->es' ? w.en : w.es;       // listen->en carries the Spanish to speak
+};
+
+/**
+ * Decide how each word is asked: roughly 40% recognition, 30% production,
+ * 20% listening, 10% picture.
+ *
+ * Picture questions need art, so they are allocated first and only to words
+ * that have it; a word without art falls through to the next type rather than
+ * losing its slot.
+ */
+function planDirections(words: readonly Word[], rng: Rng): Direction[] {
+  const n = words.length;
+  const wantPicture = Math.round(n * 0.1);
+  const wantListen = Math.round(n * 0.2);
+  const wantProduce = Math.round(n * 0.3);
+
+  const plan: Direction[] = new Array(n).fill('es->en');
+  let pictures = 0;
+  let listens = 0;
+  let produces = 0;
+
+  for (const i of shuffle(words.map((_, idx) => idx), rng)) {
+    const w = words[i]!;
+    if (pictures < wantPicture && w.sprite) {
+      plan[i] = 'picture->es';
+      pictures += 1;
+    } else if (listens < wantListen) {
+      plan[i] = 'listen->en';
+      listens += 1;
+    } else if (produces < wantProduce) {
+      plan[i] = 'en->es';
+      produces += 1;
+    }
+  }
+  return plan;
 }
 
 /**
@@ -28,7 +64,7 @@ export function buildQuestions(
   pool: readonly Word[],
   rng: Rng,
 ): Question[] {
-  const directions = directionsFor(selected.length, rng);
+  const directions = planDirections(selected, rng);
 
   return selected.map((word, i) => {
     const direction = directions[i]!;
@@ -55,6 +91,7 @@ export function buildQuestions(
       word,
       direction,
       prompt: show(word, direction),
+      promptImage: direction === 'picture->es' ? word.sprite : undefined,
       options: shuffle([answer, ...distractors], rng),
       answer,
     };

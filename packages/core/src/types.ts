@@ -24,6 +24,8 @@ export interface Word {
   pos: PartOfSpeech;
   /** 1 = end of A1, 2 = A2, 3 = A2+/B1. Lower tiers are introduced first. */
   tier: 1 | 2 | 3;
+  /** Asset key for Pepe art illustrating this word, when it exists. */
+  sprite?: string;
   /** Usage note, e.g. where Mexico differs from Spain. */
   note?: string;
 }
@@ -48,13 +50,15 @@ export interface VocabDb {
 }
 
 /** Which way a question is asked. */
-export type Direction = 'es->en' | 'en->es';
+export type Direction = 'es->en' | 'en->es' | 'listen->en' | 'picture->es';
 
 export interface Question {
   word: Word;
   direction: Direction;
   /** What to show as the prompt. */
   prompt: string;
+  /** Asset key to show instead of text, for picture questions. */
+  promptImage?: string;
   /** Four options, shuffled. Exactly one equals `answer`. */
   options: string[];
   answer: string;

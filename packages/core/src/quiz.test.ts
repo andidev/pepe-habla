@@ -36,12 +36,14 @@ describe('buildQuestions', () => {
   test('prompt and answer follow the direction', () => {
     const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(5));
     for (const q of qs) {
-      if (q.direction === 'es->en') {
-        assert.equal(q.prompt, q.word.es);
-        assert.equal(q.answer, q.word.en);
-      } else {
+      if (q.direction === 'en->es') {
         assert.equal(q.prompt, q.word.en);
         assert.equal(q.answer, q.word.es);
+      } else if (q.direction === 'picture->es') {
+        assert.equal(q.answer, q.word.es);
+      } else {
+        assert.equal(q.prompt, q.word.es);
+        assert.equal(q.answer, q.word.en);
       }
     }
   });
@@ -49,7 +51,8 @@ describe('buildQuestions', () => {
   test('mixes both directions over ten words', () => {
     const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(9));
     const dirs = new Set(qs.map((q) => q.direction));
-    assert.equal(dirs.size, 2, 'expected a mix of es->en and en->es');
+    assert.ok(dirs.has('es->en') && dirs.has('en->es'),
+      'expected both reading directions among ten questions');
   });
 
   test('distractors match the part of speech when enough exist', () => {
@@ -57,7 +60,9 @@ describe('buildQuestions', () => {
     const mixed = [...pool, ...verbs];
     const qs = buildQuestions([verbs[0]!], mixed, mulberry32(2));
     const q = qs[0]!;
-    const byText = new Map(mixed.map((w) => [q.direction === 'es->en' ? w.en : w.es, w]));
+    const answerText = (w: Word) =>
+      (q.direction === 'en->es' || q.direction === 'picture->es') ? w.es : w.en;
+    const byText = new Map(mixed.map((w) => [answerText(w), w]));
     for (const opt of q.options) {
       if (opt === q.answer) continue;
       assert.equal(byText.get(opt)?.pos, 'verb', `distractor "${opt}" is not a verb`);
@@ -91,6 +96,55 @@ describe('buildQuestions', () => {
     const a = buildQuestions(pool.slice(0, 5), pool, mulberry32(8));
     const b = buildQuestions(pool.slice(0, 5), pool, mulberry32(8));
     assert.deepEqual(a, b);
+  });
+});
+
+describe('four question types', () => {
+  const withSprites = pool.map((w, i) =>
+    i % 3 === 0 ? { ...w, sprite: `vocab-${w.id}.png` } : w);
+
+  test('a picture question shows art and is answered in Spanish', () => {
+    const only = [{ ...word('taco'), sprite: 'vocab-taco.png' }];
+    const qs = buildQuestions(only, [...only, ...pool], mulberry32(1));
+    const q = qs[0]!;
+    if (q.direction !== 'picture->es') return;     // mix may not pick it for one word
+    assert.equal(q.promptImage, 'vocab-taco.png');
+    assert.equal(q.prompt, '');
+    assert.equal(q.answer, 'es-taco');
+  });
+
+  test('a listening question is answered in English and carries the Spanish to speak', () => {
+    const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(3));
+    const listens = qs.filter((q) => q.direction === 'listen->en');
+    assert.ok(listens.length > 0, 'expected at least one listening question in ten');
+    for (const q of listens) {
+      assert.equal(q.prompt, q.word.es, 'prompt is the Spanish the app will speak');
+      assert.equal(q.answer, q.word.en);
+      assert.equal(q.promptImage, undefined);
+    }
+  });
+
+  test('over ten words the mix is roughly 4 / 3 / 2 / 1', () => {
+    const qs = buildQuestions(withSprites.slice(0, 10), withSprites, mulberry32(5));
+    const count = (d: string) => qs.filter((q) => q.direction === d).length;
+    assert.equal(count('picture->es'), 1);
+    assert.equal(count('listen->en'), 2);
+    assert.equal(count('en->es'), 3);
+    assert.equal(count('es->en'), 4);
+  });
+
+  test('a word with no art never gets a picture question', () => {
+    const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(7));
+    assert.equal(qs.filter((q) => q.direction === 'picture->es').length, 0);
+  });
+
+  test('picture and listening options are still four distinct plausible words', () => {
+    const qs = buildQuestions(withSprites.slice(0, 10), withSprites, mulberry32(9));
+    for (const q of qs) {
+      assert.equal(q.options.length, 4);
+      assert.equal(new Set(q.options).size, 4);
+      assert.ok(q.options.includes(q.answer));
+    }
   });
 });
 
