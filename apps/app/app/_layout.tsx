@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
 import {
   Fraunces_800ExtraBold, Fraunces_900Black,
@@ -6,6 +7,7 @@ import { Figtree_600SemiBold, Figtree_800ExtraBold } from '@expo-google-fonts/fi
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { prepareAudio } from '../feedback';
 import { colour } from '../theme';
 
 export default function RootLayout() {
@@ -13,6 +15,8 @@ export default function RootLayout() {
     Fraunces_800ExtraBold, Fraunces_900Black,
     Figtree_600SemiBold, Figtree_800ExtraBold,
   });
+
+  useEffect(() => { void prepareAudio(); }, []);
 
   if (!ready) return null;
 
