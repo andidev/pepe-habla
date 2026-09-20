@@ -6,6 +6,18 @@ background by flood-filling inward from the border, treat everything else as
 foreground, dilate a little so a dog and the prop it is holding count as one
 drawing, then label the connected blobs and crop each one.
 
+An earlier pass dilated by 7px, which was enough to bridge the gap between
+neighbouring drawings and merge them into one crop. Dropping dilation to 3px
+(just enough to still join a dog to a prop drawn touching it) was sufficient
+to separate every merged pair on these three sheets — no blob ended up
+needing to be split after the fact, so there is no splitting step here.
+
+At dilation 3, drawings placed close together can still have overlapping
+*padded* crop rectangles without ever being the same blob, which bled a
+fragment of one drawing into its neighbour's crop. `cut` fixes this by
+keeping only the pixels that belong to the target blob's own connected-
+component label, in addition to the existing local background flood-fill.
+
 Background removal inside a crop is done by flooding from that crop's border
 rather than by matching the background colour globally — otherwise white parts
 of the artwork (Pepe's chest, a sugar skull, a sombrero highlight) punch holes
@@ -62,45 +74,10 @@ def find_drawings(fg: np.ndarray, total: int) -> list[tuple[tuple[slice, slice],
         filled = int((labels[sl] == i).sum())
         if filled < total * MIN_AREA_FRACTION:
             continue
-        area = (sl[0].stop - sl[0].start) * (sl[1].stop - sl[1].start)
-        member = labels == i
-        # Two drawings bridged by a whisker fill very little of their shared box.
-        if filled / area < 0.22:
-            boxes.extend((sub_sl, member) for sub_sl in _split(member, sl))
-        else:
-            boxes.append((sl, member))
+        boxes.append((sl, labels == i))
 
     boxes.sort(key=lambda b: (round(b[0][0].start / 60), b[0][1].start))
     return boxes
-
-
-def _split(mask: np.ndarray, sl) -> list[tuple[slice, slice]]:
-    """Cut a merged blob at its emptiest row or column."""
-    sub = mask[sl]
-    rows = sub.sum(axis=1)
-    cols = sub.sum(axis=0)
-    # Prefer whichever axis has a clear gap nearer its middle.
-    best = None
-    for axis, profile in ((0, rows), (1, cols)):
-        mid = len(profile) // 2
-        window = range(int(len(profile) * 0.25), int(len(profile) * 0.75))
-        if not window:
-            continue
-        cut = min(window, key=lambda i: (profile[i], abs(i - mid)))
-        if profile[cut] <= profile.max() * 0.05:
-            score = abs(cut - mid)
-            if best is None or score < best[0]:
-                best = (score, axis, cut)
-    if best is None:
-        return [sl]
-
-    _, axis, cut = best
-    ys, xs = sl
-    if axis == 0:
-        return [(slice(ys.start, ys.start + cut), xs),
-                (slice(ys.start + cut, ys.stop), xs)]
-    return [(ys, slice(xs.start, xs.start + cut)),
-            (ys, slice(xs.start + cut, xs.stop))]
 
 
 def cut(img: Image.Image, sl, rgb: np.ndarray, member: np.ndarray) -> Image.Image:
