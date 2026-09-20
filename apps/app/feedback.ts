@@ -97,26 +97,31 @@ function rankVoice(v: { language: string; identifier: string }): number {
   return 0;
 }
 
+let speechReady: Promise<void> | null = null;
+
 /** Called once at startup, after prepareAudio. */
-export async function prepareSpeech(): Promise<void> {
-  try {
-    const all = await Speech.getAvailableVoicesAsync();
-    const best = all
-      .map((v) => ({ v, score: rankVoice(v) }))
-      .filter((x) => x.score > 0)
-      .sort((a, b) => b.score - a.score)[0];
-    spanishVoice = best ? best.v.identifier : null;
-  } catch {
-    spanishVoice = null;
-  } finally {
-    voicesChecked = true;
-  }
+export function prepareSpeech(): Promise<void> {
+  speechReady = (async () => {
+    try {
+      const all = await Speech.getAvailableVoicesAsync();
+      const best = all
+        .map((v) => ({ v, score: rankVoice(v) }))
+        .filter((x) => x.score > 0)
+        .sort((a, b) => b.score - a.score)[0];
+      spanishVoice = best ? best.v.identifier : null;
+    } catch {
+      spanishVoice = null;
+    } finally {
+      voicesChecked = true;
+    }
+  })();
+  return speechReady;
 }
 
 /** False when this device can neither play a recording nor speak Spanish. */
-export function canSpeak(word?: { id: string }): boolean {
-  if (word && RECORDINGS[word.id] !== undefined) return true;
-  return !voicesChecked || spanishVoice !== null;
+export function canSpeak(word: { id: string }): boolean {
+  if (RECORDINGS[word.id] !== undefined) return true;
+  return voicesChecked && spanishVoice !== null;
 }
 
 export function speak(word: { id: string; es: string }): void {
@@ -135,13 +140,19 @@ export function speak(word: { id: string; es: string }): void {
     return;
   }
 
-  if (voicesChecked && spanishVoice === null) return;   // never an English mouth
-  attempt(() => Speech.stop().then(() => Speech.speak(word.es, {
-    language: 'es-MX',
-    rate: 0.95,
-    pitch: 1.0,
-    ...(spanishVoice ? { voice: spanishVoice } : {}),
-  })));
+  // No recording. Wait for the voice check before speaking — speaking with
+  // whatever voice the device happens to default to is the bug this whole
+  // task exists to fix.
+  attempt(() => (speechReady ?? Promise.resolve()).then(() => {
+    const voice = spanishVoice;
+    if (voice === null) return;                     // step 4: silence
+    return Speech.stop().then(() => Speech.speak(word.es, {
+      language: 'es-MX',
+      rate: 0.95,
+      pitch: 1.0,
+      voice,
+    }));
+  }));
 }
 
 export function stopSpeaking(): void {
