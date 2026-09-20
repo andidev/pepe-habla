@@ -1,0 +1,16 @@
+{
+  "name": "spanish",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A Spanish vocabulary trainer with Leitner scheduling. Core logic is platform-agnostic.",
+  "scripts": {
+    "test": "node --test 'src/**/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "practice": "node src/cli.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@types/node": "^22.10.0"
+  }
+}
