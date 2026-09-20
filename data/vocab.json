@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "progress": {
+    "poner": {
+      "id": "poner",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "la-puerta": {
+      "id": "la-puerta",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "el-pan": {
+      "id": "el-pan",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "la-hora": {
+      "id": "la-hora",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "el-agua": {
+      "id": "el-agua",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "entender": {
+      "id": "entender",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "escribir": {
+      "id": "escribir",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "lejos": {
+      "id": "lejos",
+      "box": 1,
+      "seen": 1,
+      "right": 0,
+      "wrong": 1,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-20"
+    },
+    "la-tienda": {
+      "id": "la-tienda",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    },
+    "caro": {
+      "id": "caro",
+      "box": 2,
+      "seen": 1,
+      "right": 1,
+      "wrong": 0,
+      "lastSeen": "2026-09-19",
+      "dueOn": "2026-09-21"
+    }
+  }
+}
