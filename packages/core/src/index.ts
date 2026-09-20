@@ -6,3 +6,4 @@ export * from './leitner.ts';
 export * from './select.ts';
 export * from './quiz.ts';
 export * from './session.ts';
+export * from './streak.ts';
