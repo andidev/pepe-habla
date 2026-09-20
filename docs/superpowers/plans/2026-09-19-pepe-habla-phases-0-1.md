@@ -4,7 +4,7 @@
 
 **Goal:** Get a playable Spanish trainer onto an iPhone and an Android phone — Pepe animated, mariachi sounds, four question types, elastic rounds — built on the existing pure-TypeScript core.
 
-**Architecture:** npm workspaces. `packages/core` holds every decision the app makes (scheduling, selection, question building, the session state machine) as pure functions over plain data, importing nothing from `node:`, `react` or `react-native`. `apps/mobile` is an Expo app that renders that state and owns all I/O. The session is a reducer in core, so the part most likely to have subtle bugs is unit-testable without a simulator.
+**Architecture:** npm workspaces. `packages/core` holds every decision the app makes (scheduling, selection, question building, the session state machine) as pure functions over plain data, importing nothing from `node:`, `react` or `react-native`. `apps/app` is one Expo app targeting iOS, Android and the web that renders that state and owns all I/O. The session is a reducer in core, so the part most likely to have subtle bugs is unit-testable without a simulator.
 
 **Tech Stack:** TypeScript (no build step — Node 24 strips types natively), `node:test`, Expo SDK 57, expo-router, react-native-reanimated 4, expo-audio, expo-haptics, expo-speech, AsyncStorage.
 
@@ -25,6 +25,11 @@
 - **Touch targets are at least 44px.**
 - **A wrong answer is never punishing.** Soft sound, no red flash of the whole screen, no life lost.
 - **Repair answers never affect scheduling or stats.** Only the first answer to a word in a session counts.
+- **A web build is coming, so platform-specific code lives in exactly two
+  places: `feedback.ts` and `components/Screen.tsx`.** Nowhere else may branch
+  on `Platform.OS` or reach for a device-only API. Scattered platform checks are
+  what turn "run it on the web" into a rewrite; two contained files can each be
+  given a `.web.ts` sibling later without touching a screen.
 - **Install Expo packages with `npx expo install <pkg>`, never `npm install <pkg>`** — it resolves the version matching SDK 57. Do not pin versions by hand.
 
 ---
@@ -38,7 +43,7 @@
 | `src/core/*.ts` | `packages/core/src/*.ts` | pure logic, unchanged |
 | `src/storage/*.ts` | `tools/store/*.ts` | Node-only file storage for the CLI |
 | `src/cli.ts` | `tools/cli.ts` | word-list authoring and validation |
-| `apps/assets/*` | `apps/mobile/assets/*` | sprites, audio, photo |
+| `apps/assets/*` | `apps/app/assets/*` | sprites, audio, photo |
 
 **Phase 0 and 1 create these:**
 
@@ -50,16 +55,16 @@
 | `packages/core/src/session.test.ts` | its tests |
 | `packages/core/src/noNodeImports.test.ts` | guards the constraint above |
 | `tools/sprite_manifest.py` | names the extracted sprites and writes a manifest |
-| `apps/mobile/app/_layout.tsx` | fonts, tabs, the storage provider |
-| `apps/mobile/app/index.tsx` | home screen |
-| `apps/mobile/app/session.tsx` | the round |
-| `apps/mobile/theme.ts` | palette, type scale, the card/button recipes |
-| `apps/mobile/components/Pepe.tsx` | the animated mascot |
-| `apps/mobile/components/OptionButton.tsx` | one tappable answer |
-| `apps/mobile/components/PressableCard.tsx` | the chunky-button press, shared |
-| `apps/mobile/feedback.ts` | sound, haptics and speech behind one call |
-| `apps/mobile/storage/progressStore.ts` | AsyncStorage implementation of progress persistence |
-| `apps/mobile/storage/vocabulary.ts` | bundled seed words plus the sprite manifest |
+| `apps/app/app/_layout.tsx` | fonts, tabs, the storage provider |
+| `apps/app/app/index.tsx` | home screen |
+| `apps/app/app/session.tsx` | the round |
+| `apps/app/theme.ts` | palette, type scale, the card/button recipes |
+| `apps/app/components/Pepe.tsx` | the animated mascot |
+| `apps/app/components/OptionButton.tsx` | one tappable answer |
+| `apps/app/components/PressableCard.tsx` | the chunky-button press, shared |
+| `apps/app/feedback.ts` | sound, haptics and speech behind one call |
+| `apps/app/storage/progressStore.ts` | AsyncStorage implementation of progress persistence |
+| `apps/app/storage/vocabulary.ts` | bundled seed words plus the sprite manifest |
 
 ---
 
@@ -69,7 +74,7 @@
 
 **Files:**
 - Create: `packages/core/package.json`, `packages/core/tsconfig.json`, `packages/core/src/index.ts`, `packages/core/src/noNodeImports.test.ts`
-- Move: `src/core/*` → `packages/core/src/`, `src/storage/*` → `tools/store/`, `src/cli.ts` → `tools/cli.ts`, `apps/assets/*` → `apps/mobile/assets/`
+- Move: `src/core/*` → `packages/core/src/`, `src/storage/*` → `tools/store/`, `src/cli.ts` → `tools/cli.ts`, `apps/assets/*` → `apps/app/assets/`
 - Modify: `package.json`, `tsconfig.json`
 
 **Interfaces:**
@@ -79,13 +84,13 @@
 - [ ] **Step 1: Move the files with git so history follows them**
 
 ```bash
-mkdir -p packages/core/src tools/store apps/mobile
+mkdir -p packages/core/src tools/store apps/app
 git mv src/core/dates.ts src/core/dates.test.ts src/core/leitner.ts src/core/leitner.test.ts \
        src/core/quiz.ts src/core/quiz.test.ts src/core/rng.ts src/core/select.ts \
        src/core/select.test.ts src/core/types.ts packages/core/src/
 git mv src/storage/store.ts src/storage/fileStore.ts src/storage/fileStore.test.ts tools/store/
 git mv src/cli.ts tools/cli.ts
-git mv apps/assets apps/mobile/assets
+git mv apps/assets apps/app/assets
 rmdir src/core src/storage src 2>/dev/null || true
 ```
 
@@ -190,14 +195,14 @@ Expected: PASS, 1 test. (It passes immediately — it is a guard, not a red-gree
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "workspaces": ["packages/*", "apps/mobile"],
+  "workspaces": ["packages/*", "apps/app"],
   "description": "A Spanish vocabulary trainer. Core logic is platform-agnostic.",
   "scripts": {
     "test": "node --test 'packages/core/src/**/*.test.ts' 'tools/**/*.test.ts'",
     "typecheck": "tsc --noEmit",
     "practice": "node tools/cli.ts",
     "sprites": "python3 tools/extract_sprites.py",
-    "sounds": "python3 tools/make_sounds.py apps/mobile/assets/audio/"
+    "sounds": "python3 tools/make_sounds.py apps/app/assets/audio/"
   },
   "devDependencies": {
     "typescript": "^5.7.0",
@@ -262,13 +267,13 @@ The first run produced 53 crops from 3 sheets, but 9 of them merged two or three
 
 **Files:**
 - Modify: `tools/extract_sprites.py`
-- Create: `tools/sprite_manifest.py`, `apps/mobile/assets/pepe/manifest.json`
+- Create: `tools/sprite_manifest.py`, `apps/app/assets/pepe/manifest.json`
 
 **Interfaces:**
 - Consumes: nothing from earlier tasks.
-- Produces: `apps/mobile/assets/pepe/manifest.json`, shape
+- Produces: `apps/app/assets/pepe/manifest.json`, shape
   `{ "poses": { "idle": "pepe-idle.png", ... }, "vocab": { "el-taco": "vocab-taco.png", ... } }`.
-  Task 6 and Task 10 read it via `apps/mobile/storage/vocabulary.ts`.
+  Task 6 and Task 10 read it via `apps/app/storage/vocabulary.ts`.
 
 - [ ] **Step 1: Reduce the dilation and split blobs that are really two drawings**
 
@@ -379,7 +384,7 @@ import shutil
 from pathlib import Path
 
 SRC = Path('images/sprites')
-OUT = Path('apps/mobile/assets/pepe')
+OUT = Path('apps/app/assets/pepe')
 
 # Emotional states. These drive the mascot; every one is required.
 POSES = {
@@ -440,7 +445,7 @@ The numbers in `POSES` and `VOCAB` come from the *old* extraction. Open `/tmp/co
 
 ```bash
 python3 tools/sprite_manifest.py
-cat apps/mobile/assets/pepe/manifest.json
+cat apps/app/assets/pepe/manifest.json
 ```
 
 Expected: `6 poses, 4 vocab sprites` and a manifest listing them. A `SystemExit` naming a missing sprite means a stem is still wrong.
@@ -452,7 +457,7 @@ node -e "
 const fs = require('fs');
 const words = ['tier1','tier2','tier3'].flatMap(t => require('./data/seed/'+t+'.json'));
 const ids = new Set(words.map(w => w.id));
-const m = require('./apps/mobile/assets/pepe/manifest.json');
+const m = require('./apps/app/assets/pepe/manifest.json');
 const bad = Object.keys(m.vocab).filter(id => !ids.has(id));
 console.log(bad.length ? 'NOT IN SEED DATA: ' + bad.join(', ') : 'all vocab ids valid');
 "
@@ -1084,8 +1089,8 @@ through to the next type rather than wasting the slot."
 ### Task 5: Expo app, design system, and proof that core is wired in
 
 **Files:**
-- Create: `apps/mobile/` (scaffolded), `apps/mobile/metro.config.js`, `apps/mobile/theme.ts`, `apps/mobile/components/PressableCard.tsx`, `apps/mobile/app/_layout.tsx`, `apps/mobile/app/index.tsx`
-- Modify: `apps/mobile/package.json`
+- Create: `apps/app/` (scaffolded), `apps/app/metro.config.js`, `apps/app/theme.ts`, `apps/app/components/PressableCard.tsx`, `apps/app/app/_layout.tsx`, `apps/app/app/index.tsx`
+- Modify: `apps/app/package.json`
 
 **Interfaces:**
 - Consumes: `@pepe/core` (any export, to prove resolution).
@@ -1094,8 +1099,8 @@ through to the next type rather than wasting the slot."
 - [ ] **Step 1: Scaffold the app inside the workspace**
 
 ```bash
-npx create-expo-app@latest apps/mobile --template blank-typescript --no-install
-cd apps/mobile
+npx create-expo-app@latest apps/app --template blank-typescript --no-install
+cd apps/app
 npx expo install expo-router react-native-safe-area-context react-native-screens \
   expo-linking expo-constants expo-status-bar react-native-reanimated \
   expo-font @expo-google-fonts/fraunces @expo-google-fonts/figtree
@@ -1105,7 +1110,7 @@ npm install
 
 - [ ] **Step 2: Point the app at expo-router and at core**
 
-Edit `apps/mobile/package.json`: set `"main": "expo-router/entry"`, and add core as a dependency so the workspace links it:
+Edit `apps/app/package.json`: set `"main": "expo-router/entry"`, and add core as a dependency so the workspace links it:
 
 ```json
   "main": "expo-router/entry",
@@ -1116,7 +1121,7 @@ Edit `apps/mobile/package.json`: set `"main": "expo-router/entry"`, and add core
 
 (Keep every dependency `expo install` already added; just merge `@pepe/core` in.)
 
-In `apps/mobile/app.json`, inside `expo`, add the router plugin and a scheme:
+In `apps/app/app.json`, inside `expo`, add the router plugin and a scheme:
 
 ```json
     "scheme": "pepehabla",
@@ -1125,7 +1130,7 @@ In `apps/mobile/app.json`, inside `expo`, add the router plugin and a scheme:
 
 - [ ] **Step 3: Teach Metro about the monorepo**
 
-Create `apps/mobile/metro.config.js`. Without this, Metro cannot see `packages/core` because it lives outside the app folder:
+Create `apps/app/metro.config.js`. Without this, Metro cannot see `packages/core` because it lives outside the app folder:
 
 ```javascript
 const { getDefaultConfig } = require('expo/metro-config');
@@ -1149,7 +1154,7 @@ config.resolver.disableHierarchicalLookup = true;
 module.exports = config;
 ```
 
-- [ ] **Step 4: Write `apps/mobile/theme.ts`**
+- [ ] **Step 4: Write `apps/app/theme.ts`**
 
 ```typescript
 /**
@@ -1185,7 +1190,7 @@ export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 28 } as const;
 export const outline = { borderWidth: 2, borderColor: colour.ink } as const;
 ```
 
-- [ ] **Step 5: Write `apps/mobile/components/PressableCard.tsx`**
+- [ ] **Step 5: Write `apps/app/components/PressableCard.tsx`**
 
 React Native's `shadow*` props blur on iOS and `elevation` blurs on Android, so neither gives the hard offset the design needs. Draw the shadow as a solid slab behind the face instead — identical on both platforms, and it animates for free.
 
@@ -1244,7 +1249,47 @@ export function PressableCard({
 }
 ```
 
-- [ ] **Step 6: Write `apps/mobile/app/_layout.tsx`**
+- [ ] **Step 6: Write `apps/app/components/Screen.tsx`**
+
+Every screen is designed at phone width. On a desktop browser a full-bleed
+layout would stretch a 390px design across 1400px, so the shell caps and
+centres it. Doing this now costs one component; retrofitting it later means
+touching every screen.
+
+```tsx
+import type { ReactNode } from 'react';
+import { View } from 'react-native';
+import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
+import { colour } from '../theme';
+
+/** The width the whole app is designed at. */
+export const APP_WIDTH = 430;
+
+/**
+ * The outer frame of every screen.
+ *
+ * On a phone this is just a safe-area view. On the web it also centres the
+ * app and caps its width, so the design keeps its proportions in a browser
+ * window. This and `feedback.ts` are the only places allowed to care which
+ * platform they are running on.
+ */
+export function Screen({
+  children, edges = ['top'],
+}: {
+  children: ReactNode;
+  edges?: readonly Edge[];
+}) {
+  return (
+    <View style={{ flex: 1, backgroundColor: colour.ground, alignItems: 'center' }}>
+      <SafeAreaView style={{ flex: 1, width: '100%', maxWidth: APP_WIDTH }} edges={edges}>
+        {children}
+      </SafeAreaView>
+    </View>
+  );
+}
+```
+
+- [ ] **Step 7: Write `apps/app/app/_layout.tsx`**
 
 ```tsx
 import { useFonts } from 'expo-font';
@@ -1279,7 +1324,7 @@ export default function RootLayout() {
 }
 ```
 
-- [ ] **Step 7: Write a temporary `apps/mobile/app/index.tsx` that proves core resolves**
+- [ ] **Step 8: Write a temporary `apps/app/app/index.tsx` that proves core resolves**
 
 This screen is replaced in Task 9. Its only job is to fail loudly now if Metro cannot import `@pepe/core`.
 
@@ -1309,10 +1354,10 @@ export default function Home() {
 }
 ```
 
-- [ ] **Step 8: Run it on the simulator and look at it**
+- [ ] **Step 9: Run it on the simulator and look at it**
 
 ```bash
-cd apps/mobile && npx expo start --clear
+cd apps/app && npx expo start --clear
 ```
 
 Press `i` for iOS. Confirm on screen:
@@ -1322,11 +1367,31 @@ Press `i` for iOS. Confirm on screen:
 
 If Metro fails to resolve `@pepe/core`, the likely cause is the `.ts` import extensions inside core. Check the error names a file under `packages/core`; if so, confirm `config.resolver.sourceExts` includes `ts` (it does by default) and that `npm install` created `node_modules/@pepe/core` as a symlink.
 
-- [ ] **Step 9: Check it on Android too, before more is built on top**
+- [ ] **Step 10: Check it on Android too, before more is built on top**
 
 Press `a` in the same Expo session (or `npx expo start --android`). Confirm the card's hard shadow looks identical to iOS — this is the check that the shadow-slab approach worked. If the shadow is blurred, a native shadow prop leaked in somewhere.
 
-- [ ] **Step 10: Commit**
+- [ ] **Step 11: Prove the web target works before anything is built on it**
+
+A web build is a later goal, but it is far cheaper to keep working than to
+restore. Check it once now, while the app is one screen:
+
+```bash
+cd apps/app && npx expo install react-dom react-native-web @expo/metro-runtime && npx expo start --web
+```
+
+A browser opens. Confirm:
+1. The card renders with its hard shadow and both fonts.
+2. Pressing it sinks it — Reanimated is working in the browser.
+3. The values from `@pepe/core` are on screen, so core resolves under the web
+   bundler too.
+4. Widening the window past 430px leaves the app centred rather than stretched,
+   which is `Screen` doing its job.
+
+If any of these fail, fix it now and note what was needed. A web target that
+breaks here breaks cheaply; one discovered broken after Task 11 does not.
+
+- [ ] **Step 12: Commit**
 
 ```bash
 git add -A
@@ -1343,11 +1408,11 @@ are blurred and this design is not."
 ### Task 6: Vocabulary and progress storage
 
 **Files:**
-- Create: `apps/mobile/storage/vocabulary.ts`, `apps/mobile/storage/progressStore.ts`
-- Modify: `apps/mobile/package.json` (adds AsyncStorage)
+- Create: `apps/app/storage/vocabulary.ts`, `apps/app/storage/progressStore.ts`
+- Modify: `apps/app/package.json` (adds AsyncStorage)
 
 **Interfaces:**
-- Consumes: `VocabDb`, `Progress`, `Word` from `@pepe/core`; `apps/mobile/assets/pepe/manifest.json` from Task 2.
+- Consumes: `VocabDb`, `Progress`, `Word` from `@pepe/core`; `apps/app/assets/pepe/manifest.json` from Task 2.
 - Produces:
   `WORDS: Word[]` (every seed word, with `sprite` filled in where art exists),
   `SPRITES: Record<string, ReturnType<typeof require>>` (asset name → required module, for `<Image source>`),
@@ -1359,10 +1424,10 @@ are blurred and this design is not."
 - [ ] **Step 1: Add AsyncStorage**
 
 ```bash
-cd apps/mobile && npx expo install @react-native-async-storage/async-storage && cd ../..
+cd apps/app && npx expo install @react-native-async-storage/async-storage && cd ../..
 ```
 
-- [ ] **Step 2: Write `apps/mobile/storage/vocabulary.ts`**
+- [ ] **Step 2: Write `apps/app/storage/vocabulary.ts`**
 
 ```typescript
 import type { Word } from '@pepe/core';
@@ -1412,7 +1477,7 @@ export const PEPE_PHOTO = require('../assets/photo/pepe-real.jpg');
 
 If Task 2's manifest ended up with different vocab ids, update `VOCAB_ART` and the `manifest.json` together — the keys here must match the filenames the manifest lists.
 
-- [ ] **Step 3: Write `apps/mobile/storage/progressStore.ts`**
+- [ ] **Step 3: Write `apps/app/storage/progressStore.ts`**
 
 ```typescript
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -1467,7 +1532,7 @@ export function recordAnswers(
 
 - [ ] **Step 4: Allow importing JSON from outside the app folder**
 
-`data/seed/*.json` sits above `apps/mobile`. Metro already watches the workspace root from Task 5, but TypeScript needs `resolveJsonModule`. In `apps/mobile/tsconfig.json`:
+`data/seed/*.json` sits above `apps/app`. Metro already watches the workspace root from Task 5, but TypeScript needs `resolveJsonModule`. In `apps/app/tsconfig.json`:
 
 ```json
 {
@@ -1483,7 +1548,7 @@ export function recordAnswers(
 
 - [ ] **Step 5: Prove it round-trips on the device**
 
-Temporarily replace the body of `apps/mobile/app/index.tsx` with a check, run it, and read the screen:
+Temporarily replace the body of `apps/app/app/index.tsx` with a check, run it, and read the screen:
 
 ```tsx
 import { useEffect, useState } from 'react';
@@ -1537,7 +1602,7 @@ would stutter the animations."
 ### Task 7: Pepe, animated
 
 **Files:**
-- Create: `apps/mobile/components/Pepe.tsx`
+- Create: `apps/app/components/Pepe.tsx`
 
 **Interfaces:**
 - Consumes: `POSES`, `PoseName` from `../storage/vocabulary`.
@@ -1545,7 +1610,7 @@ would stutter the animations."
   `type Motion = 'still' | 'breathe' | 'hop' | 'shake' | 'celebrate'`.
   Tasks 9, 10 and 11 use it.
 
-- [ ] **Step 1: Write `apps/mobile/components/Pepe.tsx`**
+- [ ] **Step 1: Write `apps/app/components/Pepe.tsx`**
 
 Timings are from the approved mock, not invented.
 
@@ -1667,7 +1732,7 @@ export function Pepe({ pose, motion = 'breathe', size }: Props) {
 
 - [ ] **Step 2: Look at all four motions before building screens on them**
 
-Temporarily replace `apps/mobile/app/index.tsx` with a harness:
+Temporarily replace `apps/app/app/index.tsx` with a harness:
 
 ```tsx
 import { useState } from 'react';
@@ -1719,7 +1784,7 @@ If he grows and shrinks about his middle rather than his feet, `transformOrigin`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add apps/mobile/components/Pepe.tsx apps/mobile/app/index.tsx
+git add apps/app/components/Pepe.tsx apps/app/app/index.tsx
 git commit -m "Add the animated mascot
 
 Four motions on shared values, all pivoting on his bottom edge so squash and
@@ -1731,11 +1796,11 @@ stretch reads as weight rather than a sticker changing size."
 ### Task 8: Sound, haptics and speech behind one call
 
 **Files:**
-- Create: `apps/mobile/feedback.ts`
-- Modify: `apps/mobile/package.json`
+- Create: `apps/app/feedback.ts`
+- Modify: `apps/app/package.json`
 
 **Interfaces:**
-- Consumes: the WAVs in `apps/mobile/assets/audio/`.
+- Consumes: the WAVs in `apps/app/assets/audio/`.
 - Produces: `cue(name: CueName): void` where
   `type CueName = 'tap' | 'correct' | 'wrong' | 'complete' | 'streak' | 'levelup'`;
   `speak(spanish: string): void`; `stopSpeaking(): void`;
@@ -1745,10 +1810,10 @@ stretch reads as weight rather than a sticker changing size."
 - [ ] **Step 1: Install the three modules**
 
 ```bash
-cd apps/mobile && npx expo install expo-audio expo-haptics expo-speech && cd ../..
+cd apps/app && npx expo install expo-audio expo-haptics expo-speech && cd ../..
 ```
 
-- [ ] **Step 2: Write `apps/mobile/feedback.ts`**
+- [ ] **Step 2: Write `apps/app/feedback.ts`**
 
 ```typescript
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
@@ -1786,46 +1851,60 @@ let players: Partial<Record<CueName, AudioPlayer>> = {};
 let muted = false;
 
 /**
+ * Every device API here is optional. On the web, haptics fall back to the
+ * Vibration API or nothing at all, and audio support is less mature than on
+ * the phones. None of that is worth crashing a practice session over, so every
+ * call is wrapped. This file is one of only two allowed to know it is running
+ * somewhere unusual; if the web ever needs genuinely different behaviour, it
+ * gets a `feedback.web.ts` sibling and no screen changes.
+ */
+function attempt(action: () => unknown): void {
+  try {
+    const result = action();
+    if (result instanceof Promise) result.catch(() => {});
+  } catch {
+    // Feedback is never worth interrupting practice for.
+  }
+}
+
+/**
  * Play through the silent switch, and do not stop the user's music for a 0.4s
  * chime. Called once at startup.
  */
 export async function prepareAudio(): Promise<void> {
-  await setAudioModeAsync({
+  attempt(() => setAudioModeAsync({
     playsInSilentMode: true,
     shouldPlayInBackground: false,
     interruptionMode: 'mixWithOthers',
-  });
+  }));
   for (const name of Object.keys(SOURCES) as CueName[]) {
-    players[name] = createAudioPlayer(SOURCES[name]);
+    attempt(() => { players[name] = createAudioPlayer(SOURCES[name]); });
   }
 }
 
 export function cue(name: CueName): void {
-  HAPTIC[name]();                        // haptics ignore the mute switch
+  attempt(HAPTIC[name]);                 // haptics ignore the mute switch
   if (muted) return;
   const player = players[name];
   if (!player) return;
-  try {
-    player.seekTo(0);
-    player.play();
-  } catch {
-    // A cue that cannot play is never worth interrupting practice for.
-  }
+  attempt(() => { player.seekTo(0); player.play(); });
 }
 
 export function speak(spanish: string): void {
   if (muted) return;
-  Speech.stop();
-  Speech.speak(spanish, { language: 'es-MX', rate: 0.95, pitch: 1.0 });
+  attempt(() => {
+    Speech.stop();
+    Speech.speak(spanish, { language: 'es-MX', rate: 0.95, pitch: 1.0 });
+  });
 }
 
 export function stopSpeaking(): void {
-  Speech.stop();
+  attempt(() => Speech.stop());
 }
 
 export function setMuted(next: boolean): void {
   muted = next;
-  if (next) Speech.stop();
+  if (next) attempt(() => Speech.stop());
 }
 
 export function isMuted(): boolean {
@@ -1835,7 +1914,7 @@ export function isMuted(): boolean {
 
 - [ ] **Step 3: Call `prepareAudio` at startup**
 
-In `apps/mobile/app/_layout.tsx`, add the import and an effect:
+In `apps/app/app/_layout.tsx`, add the import and an effect:
 
 ```tsx
 import { useEffect } from 'react';
@@ -1850,7 +1929,7 @@ and inside `RootLayout`, before the `if (!ready)` line:
 
 - [ ] **Step 4: Hear every cue on a real device**
 
-Temporarily add buttons to `apps/mobile/app/index.tsx`:
+Temporarily add buttons to `apps/app/app/index.tsx`:
 
 ```tsx
 import { Text, View } from 'react-native';
@@ -1887,7 +1966,7 @@ Confirm on a **physical phone**, not the simulator — the iOS Simulator does no
 - [ ] **Step 5: Commit**
 
 ```bash
-git add apps/mobile/feedback.ts apps/mobile/app/_layout.tsx apps/mobile/app/index.tsx
+git add apps/app/feedback.ts apps/app/app/_layout.tsx apps/app/app/index.tsx
 git commit -m "Add sound, haptics and Mexican text-to-speech
 
 Haptics deliberately ignore the mute switch: they still work with the phone on
@@ -1900,8 +1979,8 @@ apps rather than stopping the user's music for a 0.4s chime."
 ### Task 9: Streak, tab navigation, and the home screen
 
 **Files:**
-- Create: `packages/core/src/streak.ts`, `packages/core/src/streak.test.ts`, `apps/mobile/app/(tabs)/_layout.tsx`, `apps/mobile/app/(tabs)/index.tsx`, `apps/mobile/app/(tabs)/stats.tsx`, `apps/mobile/app/(tabs)/words.tsx`, `apps/mobile/components/Bunting.tsx`, `apps/mobile/storage/streakStore.ts`
-- Delete: `apps/mobile/app/index.tsx` (replaced by the tab route)
+- Create: `packages/core/src/streak.ts`, `packages/core/src/streak.test.ts`, `apps/app/app/(tabs)/_layout.tsx`, `apps/app/app/(tabs)/index.tsx`, `apps/app/app/(tabs)/stats.tsx`, `apps/app/app/(tabs)/words.tsx`, `apps/app/components/Bunting.tsx`, `apps/app/storage/streakStore.ts`
+- Delete: `apps/app/app/index.tsx` (replaced by the tab route)
 - Modify: `packages/core/src/index.ts`
 
 **Interfaces:**
@@ -1990,7 +2069,7 @@ Add to `packages/core/src/index.ts`:
 export * from './streak.ts';
 ```
 
-- [ ] **Step 5: Write `apps/mobile/storage/streakStore.ts`**
+- [ ] **Step 5: Write `apps/app/storage/streakStore.ts`**
 
 ```typescript
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -2016,10 +2095,10 @@ export async function saveStreak(streak: Streak): Promise<void> {
 - [ ] **Step 6: Add the bunting**
 
 ```bash
-cd apps/mobile && npx expo install react-native-svg && cd ../..
+cd apps/app && npx expo install react-native-svg && cd ../..
 ```
 
-Create `apps/mobile/components/Bunting.tsx`:
+Create `apps/app/components/Bunting.tsx`:
 
 ```tsx
 import Svg, { Line, Path } from 'react-native-svg';
@@ -2054,11 +2133,11 @@ export function Bunting({ width = 350 }: { width?: number }) {
 - [ ] **Step 7: Move the home screen into a tab group**
 
 ```bash
-mkdir -p "apps/mobile/app/(tabs)"
-git rm -f apps/mobile/app/index.tsx
+mkdir -p "apps/app/app/(tabs)"
+git rm -f apps/app/app/index.tsx
 ```
 
-Create `apps/mobile/app/(tabs)/_layout.tsx`:
+Create `apps/app/app/(tabs)/_layout.tsx`:
 
 ```tsx
 import { Tabs } from 'expo-router';
@@ -2101,7 +2180,7 @@ export default function TabLayout() {
 }
 ```
 
-Create the two phase-2 placeholders. `apps/mobile/app/(tabs)/stats.tsx`:
+Create the two phase-2 placeholders. `apps/app/app/(tabs)/stats.tsx`:
 
 ```tsx
 import { Text, View } from 'react-native';
@@ -2121,22 +2200,22 @@ export default function Stats() {
 }
 ```
 
-`apps/mobile/app/(tabs)/words.tsx` is identical except the last line reads:
+`apps/app/app/(tabs)/words.tsx` is identical except the last line reads:
 
 ```tsx
         Aquí verás todas tus palabras y qué tan bien las sabes.
 ```
 
-- [ ] **Step 8: Write the home screen at `apps/mobile/app/(tabs)/index.tsx`**
+- [ ] **Step 8: Write the home screen at `apps/app/app/(tabs)/index.tsx`**
 
 ```tsx
 import { useCallback, useState } from 'react';
 import { Image, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import { isDue, todayISO, type Streak } from '@pepe/core';
 import { Bunting } from '../../components/Bunting';
+import { Screen } from '../../components/Screen';
 import { Pepe } from '../../components/Pepe';
 import { PressableCard } from '../../components/PressableCard';
 import { cue } from '../../feedback';
@@ -2193,7 +2272,7 @@ export default function Home() {
     : 'Todo al día. ¿Quieres aprender palabras nuevas?';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colour.ground }} edges={['top']}>
+    <Screen edges={['top']}>
       <View style={{ flex: 1, paddingHorizontal: space.xl }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingTop: space.lg }}>
           <Chip>
@@ -2245,7 +2324,7 @@ export default function Home() {
           <Stat value={String(WORDS.length)} label="EN TOTAL" />
         </View>
       </View>
-    </SafeAreaView>
+    </Screen>
   );
 }
 ```
@@ -2270,7 +2349,7 @@ the number is only worth looking at if it is true."
 ### Task 10: The round — asking, all four question types, and feedback
 
 **Files:**
-- Create: `apps/mobile/components/OptionButton.tsx`, `apps/mobile/app/session.tsx`
+- Create: `apps/app/components/OptionButton.tsx`, `apps/app/app/session.tsx`
 - Modify: `packages/core/src/quiz.ts`, `packages/core/src/quiz.test.ts`
 
 **Interfaces:**
@@ -2343,7 +2422,7 @@ export function optionMeaning(
 Run: `node --test 'packages/core/src/quiz.test.ts'`
 Expected: PASS, 21 tests.
 
-- [ ] **Step 5: Write `apps/mobile/components/OptionButton.tsx`**
+- [ ] **Step 5: Write `apps/app/components/OptionButton.tsx`**
 
 ```tsx
 import { Text, View } from 'react-native';
@@ -2407,12 +2486,11 @@ export function OptionButton({
 }
 ```
 
-- [ ] **Step 6: Write `apps/mobile/app/session.tsx`**
+- [ ] **Step 6: Write `apps/app/app/session.tsx`**
 
 ```tsx
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -2422,6 +2500,7 @@ import {
   type Progress, type Question, type SessionState, type Word,
 } from '@pepe/core';
 import { OptionButton, type OptionState } from '../components/OptionButton';
+import { Screen } from '../components/Screen';
 import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
 import { cue, speak } from '../feedback';
@@ -2523,7 +2602,7 @@ export default function Session() {
   const progress = Math.round((state.index / state.queue.length) * 100);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colour.ground }} edges={['top', 'bottom']}>
+    <Screen edges={['top', 'bottom']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: space.xl, paddingTop: space.md }}>
         <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Salir de la ronda" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Svg width={19} height={19} viewBox="0 0 24 24">
@@ -2600,7 +2679,7 @@ export default function Session() {
           </View>
         </Animated.View>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 ```
@@ -2633,7 +2712,7 @@ because it is both the larger tap target and the faster one to read."
 ### Task 11: Repair round, summary, and elastic continuation
 
 **Files:**
-- Modify: `apps/mobile/app/session.tsx`
+- Modify: `apps/app/app/session.tsx`
 
 **Interfaces:**
 - Consumes: `roundScore`, `sessionScore`, `bumpStreak` from core; `recordAnswers`, `saveProgress`, `loadStreak`, `saveStreak`.
@@ -2641,7 +2720,7 @@ because it is both the larger tap target and the faster one to read."
 
 - [ ] **Step 1: Add the imports session.tsx needs**
 
-At the top of `apps/mobile/app/session.tsx`, extend the core import with `roundScore`, `sessionScore`, `bumpStreak`, and add:
+At the top of `apps/app/app/session.tsx`, extend the core import with `roundScore`, `sessionScore`, `bumpStreak`, and add:
 
 ```tsx
 import { loadProgress, saveProgress, recordAnswers } from '../storage/progressStore';
@@ -2747,7 +2826,7 @@ The current `if (!state || !question) return <View …/>` swallows the summary, 
     };
 
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: colour.ground }} edges={['top', 'bottom']}>
+      <Screen edges={['top', 'bottom']}>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
           <Pepe pose="excited" motion="celebrate" size={168} />
           <Text style={{ fontFamily: font.displayHeavy, fontSize: 34, color: colour.ink, marginTop: space.sm }}>
@@ -2789,7 +2868,7 @@ The current `if (!state || !question) return <View …/>` swallows the summary, 
             <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>Terminar por hoy</Text>
           </Pressable>
         </View>
-      </SafeAreaView>
+      </Screen>
     );
   }
 
@@ -2855,4 +2934,13 @@ Checked against the spec, 2026-09-19:
 - **Covered:** monorepo and the purity constraint (Task 1); sprite extraction and the merge bug (Task 2); the session state machine including the repair-does-not-score rule (Task 3); all four question types and the 40/30/20/10 mix (Task 4); the design system, palette, fonts and the hard-shadow press (Task 5); on-device progress with batched writes and seeding from `data/vocab.json` (Task 6); the motion table (Task 7); mariachi audio, haptics and `es-MX` speech (Task 8); the streak with no freezes, tabs and the home screen (Task 9); the round, the wrong-answer explanation (Task 10); repair, summary, elastic rounds (Task 11).
 - **Deliberately deferred to later phases,** matching the spec's phasing: the SM-2 scheduler (phase 1 ships on Leitner), levels and unlock gating, themes and theme-clustered introduction, the stats and word-list screens, the morning notification, and the vocabulary expansion past 381 words.
 - **Known gap:** the spec's mute toggle has no home in phase 1, because there is no settings screen until phase 2. `setMuted` exists and works; nothing calls it yet. Add the toggle when the stats screen lands.
+- **Web readiness:** the app is one Expo project targeting iOS, Android and
+  the web, rather than a phone app plus a future rewrite. Core was already
+  pure, so the additions are small: a `Screen` shell that caps and centres the
+  phone-width design in a browser, a `feedback.ts` where every device call is
+  guarded, a constraint confining platform knowledge to those two files, and a
+  web smoke test in Task 5 that runs before anything is built on top. The one
+  real unknown is how complete `expo-audio`'s web support is; because every
+  cue goes through `feedback.ts`, the fallback is a `feedback.web.ts` sibling
+  using an `Audio` element, and no screen changes.
 - **Type consistency:** `AnswerRecord` is defined once in `session.ts` and consumed unchanged by `recordAnswers`; `Direction` is widened in Task 4 before Tasks 10 and 11 switch on it; `PoseName` comes from `vocabulary.ts` and is used by `Pepe`; `buildRound` is defined in Task 10 and reused in Task 11.
