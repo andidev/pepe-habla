@@ -31,7 +31,16 @@
       "expo-router",
       "expo-status-bar",
       "expo-font",
-      "expo-audio"
+      "expo-audio",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 220,
+          "resizeMode": "contain",
+          "backgroundColor": "#FBF6EC"
+        }
+      ]
     ]
   }
 }

@@ -34,3 +34,8 @@ export function seedFromDate(iso: string): number {
   }
   return h >>> 0;
 }
+
+/** One item at random. */
+export function pickOne<T>(items: readonly T[], rng: Rng): T {
+  return items[Math.floor(rng() * items.length)]!;
+}
