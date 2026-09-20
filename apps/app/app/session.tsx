@@ -23,11 +23,16 @@ export function buildRound(
   progress: Record<string, Progress>,
   today: string,
   round: number,
+  exclude: ReadonlySet<string> = new Set(),
 ): Question[] {
   // Seeded by the day so a round is reproducible, and by the round number so a
   // second round is not the same ten words again.
   const rng = mulberry32(seedFromDate(today) ^ (round * 0x9e3779b9));
-  const selected = selectDaily(WORDS, progress, today, ROUND_SIZE, rng);
+  // Words already answered this session are out — the seed alone cannot
+  // separate rounds when ten or fewer words are due, because then every due
+  // word is selected no matter what the rng says.
+  const pool = exclude.size === 0 ? WORDS : WORDS.filter((w) => !exclude.has(w.id));
+  const selected = selectDaily(pool, progress, today, ROUND_SIZE, rng);
   return buildQuestions(selected, WORDS, rng);
 }
 
@@ -78,8 +83,11 @@ export default function Session() {
   // Speak listening questions as soon as they appear, and reset the clock.
   useEffect(() => {
     shownAt.current = Date.now();
+    // Only while asking. The dep array alone is not enough: answering flips the
+    // phase without changing the word, which re-runs this effect.
+    if (state?.phase !== 'asking') return;
     if (question && question.direction === 'listen->en') speak(question.word);
-  }, [question?.word.id, state?.phase === 'asking']);
+  }, [question?.word.id, state?.phase]);
 
   const meaning = useMemo(() => {
     if (!state?.picked || !question) return null;
