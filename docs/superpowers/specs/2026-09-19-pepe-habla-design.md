@@ -1,6 +1,7 @@
 # Pepe Habla — design
 
-**Status:** approved for planning
+**Status:** approved for planning; visual and audio design settled against
+working mockups
 **Date:** 2026-09-19
 
 A Spanish vocabulary trainer for iOS and Android, built on the pure-TypeScript
@@ -192,13 +193,82 @@ option actually means* — "you picked `la carne`, which is the meat" — then
 speaks the correct word. A miss teaches two words instead of zero. This is free:
 every distractor is already a real word with a known gloss.
 
+## Visual design
+
+Settled against interactive mockups rather than described: the canvas is at
+`claude.ai/artifact/S8tv25GgxU6oJefCkYtnmc`, and `Session` there is a working
+implementation of the round, animation included. It is the reference for phase 1.
+
+**The governing idea: the interface borrows the cartoons' own drawing style.**
+Every card, button and chip carries the same 2px near-black outline and flat
+fill as Pepe himself, with hard offset shadows rather than blurred ones. This is
+what stops the mascot looking pasted on top of a generic app, and it happens to
+produce the chunky pressable button that makes tapping feel good.
+
+**Palette**, drawn from the artwork:
+
+| Token | Hex | Use |
+|---|---|---|
+| ground | `#FBF6EC` | page background, warm bone |
+| surface | `#FFFFFF` | cards, option buttons |
+| ink | `#1C1714` | outlines, body text |
+| muted | `#6B6259` | secondary text |
+| chile | `#D1453B` | primary action, wrong answers |
+| cactus | `#2E7D5B` | correct answers, progress |
+| marigold | `#E9A020` | streak, listen prompts |
+
+**Type**: Fraunces for display (its soft and wonk axes give it character
+without being a novelty face) over Figtree for interface text.
+
+**The interface is in Spanish** — ¡Vamos!, Siguiente, ¿Otra ronda?, Se te
+atragantan. Free immersion in the chrome, and reversible if it ever gets in
+the way.
+
+**Options are a full-width vertical list, never a 2×2 grid.** Both were built
+and compared. The list wins on tapping (350×56 = 19,600px² per row against
+170×92 = 15,640px² per cell, and a mis-tap has two neighbours rather than four)
+and on reading (one flush-left scan line rather than a Z-pattern across ragged
+centred text). It also survives long options: `el medio ambiente` wraps in a
+170px cell but sits on one line at 18px across the full width. A grid remains
+correct for a future four-images-pick-one question type, where cells hold
+pictures rather than text.
+
+## Motion
+
+Transform-based, via react-native-reanimated on the UI thread. Timings below
+are from the working mock, not invented.
+
+| Moment | Motion |
+|---|---|
+| Waiting for an answer | breathing bob, translateY 0→-4px, 2.9s ease-in-out, looped |
+| Correct | hop to -20px with squash to 0.93/1.09 and a 1.07/0.93 landing, 620ms |
+| Wrong | head shake, ±5° with a 3px droop, 520ms |
+| Round complete | celebration bob, -13px with a 2° roll, 1.15s looped |
+| Feedback appearing | panel rises 16px and fades in, 260ms |
+| Correct option revealed | pop to 1.045 and back, 340ms |
+| Any button pressed | travels 3px down, shadow collapses to 1px |
+| Progress bar | width eased over 420ms |
+
+Every sprite animates about `transform-origin: 50% 100%` — squash and stretch
+only reads as weight if the character pivots on the ground rather than its
+middle.
+
+`prefers-reduced-motion` disables all of it.
+
 ## Pepe
 
-**Sprite extraction** (`tools/extract-sprites.py`): the three sheets have flat
-cream backgrounds with clear gaps. Flood-fill the background from the corners,
-label connected regions, reject regions below a size threshold, crop each with
-padding, alpha out the background, export PNG. Roughly 72 sprites expected.
-Output is reviewed by eye and hand-named.
+**Sprite extraction** (`tools/extract_sprites.py`, written and run): flood-fill
+the background *inward from the border* rather than matching cream globally —
+otherwise white artwork (his chest, a sugar skull, a sombrero highlight) punches
+holes in the sprite. Dilate, label connected regions, drop those below a size
+threshold, crop with padding, alpha out the background, then remove small
+components touching the crop edge, which are bleed from the drawing next door.
+
+First run produced **53 crops from 3 sheets**, of which 9 merged two or three
+neighbouring drawings because they touch once dilated. **Phase 0 must fix this**
+— most likely by reducing dilation and merging only components that overlap
+vertically — and hand-name the full set. Twelve clean sprites are already cut
+and in use by the mockups.
 
 Each sprite gets a role: `idle`, `happy`, `sad`, `excited`, `sleeping`, or
 `vocab:<word-id>` for the costume sprites that illustrate a word.
@@ -218,9 +288,33 @@ sprite at the right beat. No Lottie, no sprite-sheet frame animation.
 
 ## Sound and haptics
 
-Sound effects are **synthesised**, not sourced — `tools/make-sounds.py` writes
-short WAV files (correct chime, wrong buzz, round complete, streak fanfare,
-tap click). No licensing, no downloads, version-controlled, tweakable.
+Sound effects are **synthesised, not sourced** — `tools/make_sounds.py` (written;
+the six WAVs are in `apps/assets/audio/`). Nothing is sampled, so there is no
+licensing to track and every sound is a parameter rather than a file we are
+stuck with.
+
+The palette is **a small mariachi band**, modelled from scratch in the standard
+library: vihuela and guitarrón as Karplus-Strong plucked strings, trumpets as
+additive brass always voiced in parallel thirds, marimba as a struck bar with a
+strong fourth harmonic, maracas as differenced noise.
+
+**Everything sits in A major.** This matters more than any individual sound:
+six effects in six unrelated keys read as a pile of beeps however well each is
+made, while six sharing a tonal home read as one instrument. The harmony then
+carries meaning — `correct` resolves upward onto the tonic, `wrong` falls a
+fifth away from it, `levelup` is the full chord arriving.
+
+| File | What plays | Length |
+|---|---|---|
+| `tap.wav` | one damped nylon string | 0.05s |
+| `correct.wav` | marimba rising a fourth over a quiet vihuela chord | 0.49s |
+| `wrong.wav` | guitarrón falling a fifth — a shrug, not a buzzer | 0.55s |
+| `complete.wav` | marimba arpeggio, one shake, vihuela under it | 0.79s |
+| `streak.wav` | the climb carried further, trumpet landing on top | 0.84s |
+| `levelup.wav` | the whole band: trumpets in thirds over strum and bass | 1.08s |
+
+A wrong answer must never be punishing. This is meant to be daily, and a harsh
+failure sound is the fastest way to stop someone opening the app.
 
 Played through `expo-audio`. Every sound pairs with an `expo-haptics` impact —
 light on tap, success on correct, warning on wrong. Haptics do most of the work
@@ -249,7 +343,8 @@ the explanation line, a speaker button, and *Siguiente*.
 - **Leeches** — highest `lapses`, still short-interval. The words actually
   blocking progress, which most apps hide.
 - Level progress bar toward the 70% unlock
-- One good photo of the real Pepe at the bottom
+- The real Pepe, full width at the bottom with the ink border and a
+  caption plate laid over the foot of the photo. The page scrolls.
 
 **Words.** Every word practised, with accuracy, times seen, next due, and
 current interval. Filterable by theme and level. Tapping one speaks it. A
