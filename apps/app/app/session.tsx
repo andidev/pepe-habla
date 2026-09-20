@@ -4,8 +4,8 @@ import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
-  buildQuestions, currentQuestion, mulberry32, optionMeaning, reduce,
-  seedFromDate, selectDaily, startSession, todayISO,
+  buildQuestions, bumpStreak, currentQuestion, mulberry32, optionMeaning, reduce,
+  roundScore, seedFromDate, selectDaily, sessionScore, startSession, todayISO,
   type Progress, type Question, type SessionState, type Word,
 } from '@pepe/core';
 import { OptionButton, type OptionState } from '../components/OptionButton';
@@ -13,9 +13,11 @@ import { Screen } from '../components/Screen';
 import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
 import { cue, speak } from '../feedback';
-import { loadProgress } from '../storage/progressStore';
+import { loadProgress, saveProgress, recordAnswers } from '../storage/progressStore';
+import { loadStreak, saveStreak } from '../storage/streakStore';
 import { VOCAB_ART, WORDS } from '../storage/vocabulary';
 import { colour, font, radius, space } from '../theme';
+import type { Streak, VocabDb } from '@pepe/core';
 
 const ROUND_SIZE = 10;
 
@@ -69,12 +71,17 @@ const TASK_LABEL: Record<string, string> = {
 export default function Session() {
   const router = useRouter();
   const [state, setState] = useState<SessionState | null>(null);
+  const [db, setDb] = useState<VocabDb | null>(null);
+  const [streak, setStreak] = useState<Streak | null>(null);
   const shownAt = useRef(Date.now());
+  const saved = useRef<number>(0);          // rounds already written to storage
 
   useEffect(() => {
     (async () => {
-      const db = await loadProgress();
-      setState(startSession(buildRound(db.progress, todayISO(), 1)));
+      const [loaded, s] = await Promise.all([loadProgress(), loadStreak()]);
+      setDb(loaded);
+      setStreak(s);
+      setState(startSession(buildRound(loaded.progress, todayISO(), 1)));
     })();
   }, []);
 
@@ -89,12 +96,103 @@ export default function Session() {
     if (question && question.direction === 'listen->en') speak(question.word);
   }, [question?.word.id, state?.phase]);
 
+  // Persist exactly once, when a round reaches its summary. The `saved` ref
+  // is what stops a re-render from writing the same round twice.
+  useEffect(() => {
+    if (!state || !db || !streak) return;
+    if (state.phase !== 'summary' || saved.current >= state.round) return;
+    saved.current = state.round;
+
+    (async () => {
+      const today = todayISO();
+      // Only this round's first answers. Repair answers were never recorded.
+      const fresh = state.results.filter((r) => r.round === state.round);
+      const nextDb = recordAnswers(db, fresh, today);
+      const nextStreak = bumpStreak(streak, today);
+
+      setDb(nextDb);
+      setStreak(nextStreak);
+      await Promise.all([saveProgress(nextDb), saveStreak(nextStreak)]);
+
+      // A longer streak is worth more noise than finishing a routine round.
+      cue(nextStreak.days > streak.days && nextStreak.days % 5 === 0 ? 'streak' : 'complete');
+    })();
+  }, [state?.phase, state?.round]);
+
   const meaning = useMemo(() => {
     if (!state?.picked || !question) return null;
     return optionMeaning(question.direction, state.picked, WORDS);
   }, [state?.picked, question]);
 
-  if (!state || !question) {
+  if (!state) {
+    return <View style={{ flex: 1, backgroundColor: colour.ground }} />;
+  }
+
+  if (state.phase === 'summary' || state.phase === 'finished') {
+    const round = roundScore(state);
+    const session = sessionScore(state);
+    const missed = state.repair.map((q) => q.word);
+
+    const another = async () => {
+      cue('tap');
+      const current = db ?? await loadProgress();
+      // Everything already answered this session is out, so another round is
+      // genuinely new material rather than the same ten words reshuffled.
+      const seen = new Set(state.results.map((r) => r.wordId));
+      setState(reduce(state, {
+        type: 'anotherRound',
+        questions: buildRound(current.progress, todayISO(), state.round + 1, seen),
+      }));
+    };
+
+    return (
+      <Screen edges={['top', 'bottom']}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
+          <Pepe pose="excited" motion="celebrate" size={168} />
+          <Text style={{ fontFamily: font.displayHeavy, fontSize: 34, color: colour.ink, marginTop: space.sm }}>
+            ¡Bien hecho!
+          </Text>
+          <Text style={{ fontFamily: font.body, fontSize: 16, color: colour.muted }}>
+            {round.right} de {round.total} correctas
+          </Text>
+          {state.round > 1 && (
+            <Text style={{ fontFamily: font.body, fontSize: 14, color: colour.muted, marginTop: 2 }}>
+              {session.right} de {session.total} en toda la sesión
+            </Text>
+          )}
+
+          {missed.length > 0 && (
+            <View style={{ width: '100%', marginTop: space.xl, backgroundColor: colour.surface, borderWidth: 2, borderColor: colour.ink, borderRadius: radius.card, padding: 16 }}>
+              <Text style={{ fontFamily: font.bodyHeavy, fontSize: 12, color: colour.muted, letterSpacing: 1, marginBottom: 9 }}>
+                PARA REPASAR
+              </Text>
+              {missed.map((w) => (
+                <View key={w.id} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 9, marginBottom: 4 }}>
+                  <Text style={{ fontFamily: font.display, fontSize: 19, color: colour.ink }}>{w.es}</Text>
+                  <Text style={{ fontFamily: font.body, fontSize: 15, color: colour.muted }}>{w.en}</Text>
+                </View>
+              ))}
+              <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, marginTop: 5 }}>
+                Vuelven mañana.
+              </Text>
+            </View>
+          )}
+
+          <PressableCard depth={5} face={colour.cactus} onPress={another} style={{ width: '100%', marginTop: space.xl }}>
+            <View style={{ height: 60, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontFamily: font.displayHeavy, fontSize: 22, color: colour.surface }}>¿Otra ronda?</Text>
+            </View>
+          </PressableCard>
+
+          <Pressable onPress={() => router.back()} style={{ height: 52, width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
+            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>Terminar por hoy</Text>
+          </Pressable>
+        </View>
+      </Screen>
+    );
+  }
+
+  if (!question) {
     return <View style={{ flex: 1, backgroundColor: colour.ground }} />;
   }
 
@@ -116,7 +214,13 @@ export default function Session() {
     setState(reduce(state, { type: 'answer', option, ms }));
   };
 
-  const progress = Math.round((state.index / state.queue.length) * 100);
+  const inRepair = state.phase === 'repairing' || state.phase === 'repair-feedback';
+  const progress = inRepair
+    ? 100
+    : Math.round((state.index / state.queue.length) * 100);
+  const counter = inRepair
+    ? `${state.repairIndex + 1} / ${state.repair.length}`
+    : `${Math.min(state.index + 1, state.queue.length)} / ${state.queue.length}`;
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -130,13 +234,15 @@ export default function Session() {
           <View style={{ width: `${progress}%`, height: '100%', backgroundColor: colour.cactus }} />
         </View>
         <Text style={{ fontFamily: font.bodyHeavy, fontSize: 14, color: colour.muted }}>
-          {Math.min(state.index + 1, state.queue.length)} / {state.queue.length}
+          {counter}
         </Text>
       </View>
 
       <View style={{ flex: 1, paddingHorizontal: space.xl }}>
         <Text style={{ fontFamily: font.bodyHeavy, fontSize: 13, color: colour.muted, letterSpacing: 1, marginTop: 22, marginBottom: space.md }}>
-          {TASK_LABEL[question.direction]}
+          {state.phase === 'repairing' || state.phase === 'repair-feedback'
+            ? 'OTRA VEZ, SIN PRISA'
+            : TASK_LABEL[question.direction]}
         </Text>
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
