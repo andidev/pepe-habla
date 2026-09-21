@@ -17,25 +17,12 @@ import { colour } from '../theme';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 SplashScreen.setOptions({ duration: 300, fade: true });
 
-/**
- * Fonts usually load faster than this, and without a floor Pepe would appear
- * for a couple of frames and vanish, which reads as a glitch rather than a
- * greeting.
- */
-const MINIMUM_SPLASH_MS = 1000;
-
 export default function RootLayout() {
   const [loaded, fontError] = useFonts({
     Fraunces_800ExtraBold, Fraunces_900Black,
     Figtree_600SemiBold, Figtree_800ExtraBold,
   });
-  const [held, setHeld] = useState(false);
   const hidden = useRef(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setHeld(true), MINIMUM_SPLASH_MS);
-    return () => clearTimeout(timer);
-  }, []);
 
   useEffect(() => { void prepareAudio(); void prepareSpeech(); void loadSoundSettings(); }, []);
 
@@ -51,7 +38,6 @@ export default function RootLayout() {
       <Gate
         fontsReady={fontsReady}
         fontsLoaded={loaded}
-        held={held}
         onShown={() => {
           // Hand over only once our own view has painted. Hiding the native
           // splash any earlier shows a blank frame between the two.
@@ -72,29 +58,41 @@ export default function RootLayout() {
  * gate the stack could render — and a round could start — before the stored
  * language finished loading, so the round would silently freeze on the
  * device-locale default even if the learner had chosen something else.
+ *
+ * Once ready, the app mounts *underneath* the splash rather than replacing
+ * it, so the splash can fade out over it. Both children keep their positions
+ * on every render, so Welcome is never remounted mid-greeting.
  */
-function Gate({ fontsReady, fontsLoaded, held, onShown }: {
+function Gate({ fontsReady, fontsLoaded, onShown }: {
   fontsReady: boolean;
   fontsLoaded: boolean;
-  held: boolean;
   onShown: () => void;
 }) {
   const { ready: languageReady } = useLanguage();
   const ready = fontsReady && languageReady;
-
-  if (!ready || !held) {
-    return <Welcome fontsReady={fontsLoaded} onShown={onShown} />;
-  }
+  const [splashGone, setSplashGone] = useState(false);
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colour.ground },
-        }}
-      />
-    </SafeAreaProvider>
+    <>
+      {ready ? (
+        <SafeAreaProvider>
+          <StatusBar style="dark" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colour.ground },
+            }}
+          />
+        </SafeAreaProvider>
+      ) : null}
+      {splashGone ? null : (
+        <Welcome
+          onShown={onShown}
+          canGreet={fontsLoaded && languageReady}
+          ready={ready}
+          onGone={() => setSplashGone(true)}
+        />
+      )}
+    </>
   );
 }

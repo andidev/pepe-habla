@@ -1,6 +1,8 @@
 """
-Build every launch asset -- the app icons and the splash image -- from the
-original Pepe drawings.
+Build every app-icon asset from the original Pepe drawings.
+
+The splash is not built here: it uses assets/pepe/pepe-happy.png directly, so
+that the native splash and the JS splash after it draw the very same file.
 
 The source is a 1024px cartoon on flat white. Each platform wants something
 different from it, so rather than hand-cutting five PNGs this renders them all
@@ -41,7 +43,6 @@ SRC = Path('images/originals/pepe-hablas-icon.jpeg')
 # to one tone, comes out washed and mushy at 48px; this black-and-white version
 # of the same pose was drawn in bold masses and survives the reduction.
 MONO_SRC = Path('images/originals/pepe-hablas-icon-black&white1.jpeg')
-SPLASH_SRC = Path('images/originals/pepe-hablas-splash.jpeg')
 OUT = Path('apps/app/assets')
 
 CREAM = (0xFB, 0xF6, 0xEC)      # colour.ground from theme.ts
@@ -51,8 +52,6 @@ WHITE = (0xFF, 0xFF, 0xFF)      # what prebuild flattens light and tinted onto
 SIZE = 1024
 # How close to white still counts as background.
 COLOUR_TOLERANCE = 18
-# A blob smaller than this fraction of the image is JPEG noise, not a drawing.
-MIN_AREA_FRACTION = 0.0015
 
 # Where the dog's eyes/nose sit in the source, in source pixels. Compositions
 # are anchored on the face rather than the bounding box, so he doesn't drift
@@ -71,13 +70,11 @@ IOS_ART = 0.88
 FACE_Y = 0.46
 
 
-def cutout(path: Path = SRC, keep: str = 'largest') -> Image.Image:
+def cutout(path: Path = SRC) -> Image.Image:
     """The drawing on a transparent background, stray fragments dropped.
 
-    `keep='largest'` is right for the icons, where the original has a loose
-    scrap of tail that would float as a speck inside the safe zone. The splash
-    art needs `keep='significant'` instead: its speech bubble does not touch
-    the dog, so keeping only the biggest blob would silently delete it.
+    Only the largest blob is kept: the original has a loose scrap of tail that
+    would otherwise float as a speck inside the icon's safe zone.
     """
     src = Image.open(path).convert('RGB')
     arr = np.array(src).astype(int)
@@ -93,12 +90,7 @@ def cutout(path: Path = SRC, keep: str = 'largest') -> Image.Image:
     blobs, count = ndimage.label(~background)
     if count > 1:
         sizes = ndimage.sum(~background, blobs, range(1, count + 1))
-        if keep == 'largest':
-            wanted = [int(np.argmax(sizes)) + 1]
-        else:
-            floor = arr[:, :, 0].size * MIN_AREA_FRACTION
-            wanted = [i + 1 for i, area in enumerate(sizes) if area >= floor]
-        subject = np.isin(blobs, wanted)
+        subject = blobs == int(np.argmax(sizes)) + 1
     else:
         subject = ~background
 
@@ -149,7 +141,7 @@ def greyscale(layer: Image.Image) -> Image.Image:
 
 
 def main() -> None:
-    for path in (SRC, MONO_SRC, SPLASH_SRC):
+    for path in (SRC, MONO_SRC):
         if not path.exists():
             sys.exit(f'missing source art: {path}')
     art = cutout()
@@ -168,11 +160,6 @@ def main() -> None:
     monochrome(place(cutout(MONO_SRC), ANDROID_ART)).save(OUT / 'android-icon-monochrome.png')
     Image.new('RGB', (SIZE, SIZE), CREAM).save(OUT / 'android-icon-background.png')
 
-    # The splash is laid out by Expo (imageWidth, resizeMode, backgroundColor),
-    # so it ships trimmed to the drawing with nothing baked behind it.
-    splash = cutout(SPLASH_SRC, keep='significant')
-    splash.crop(splash.getbbox()).save(OUT / 'splash-icon.png')
-
     check()
 
 
@@ -182,9 +169,6 @@ def check() -> None:
         icon = Image.open(OUT / name)
         assert icon.size == (SIZE, SIZE), (name, icon.size)
         assert icon.mode == 'RGB', f'{name} must be opaque, got {icon.mode}'
-    splash = Image.open(OUT / 'splash-icon.png')
-    assert splash.mode == 'RGBA', f'splash must keep alpha, got {splash.mode}'
-    assert splash.getchannel('A').getextrema()[0] == 0, 'splash has no transparency'
     darkicon = Image.open(OUT / 'icon-dark.png')
     assert darkicon.mode == 'RGBA', f'dark icon must keep alpha, got {darkicon.mode}'
     assert darkicon.getchannel('A').getextrema()[0] == 0, 'dark icon has no transparency'
@@ -194,7 +178,7 @@ def check() -> None:
         assert layer.mode == 'RGBA', f'{name} must carry alpha, got {layer.mode}'
         assert layer.getchannel('A').getextrema()[0] == 0, f'{name} has no transparent pixels'
     print('wrote icon{,-dark,-tinted}.png, favicon.png, '
-          'android-icon-{foreground,monochrome,background}.png, splash-icon.png')
+          'android-icon-{foreground,monochrome,background}.png')
 
 
 if __name__ == '__main__':
