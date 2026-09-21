@@ -55,3 +55,99 @@ Task 5: minor (deferred): "Todas" sorts most-missed first; alphabetical may suit
 Task 5: complete (commits 19eb724..ffba45b, review clean)
 Task 6: complete — superseded, not re-implemented. The user built settings under a separate spec (docs/superpowers/specs/2026-09-21-language-and-game-flow-design.md), merged as b5f08e6 via PR #2. Checked against this plan's Task 6: settings screen reachable; mute persisted in AsyncStorage under pepe-habla/muted/v1 and restored at startup by loadSoundSettings(); cue() fires the haptic before the mute check, so muting never silences touch. It goes further (language setting, an effects switch hidden while sound is off). 140 tests pass on main.
 PLAN 2 COMPLETE. Tasks 1-5 reached main via PR #2 (phase-2 merged in e451126); Task 6 superseded by b5f08e6. No separate whole-branch review was run — the branch had already been merged by another session before it could gate the merge.
+
+## Whole-branch review (2026-09-21, after the fact)
+
+Plan 2 was merged before its final gate could run, so the review was run
+against `main` instead, over `76ec9b3..270fc8a` — everything phase 2 and the
+language/answer-flow plan put on main. Two reviewers, one on
+`packages/core` + `tools` + `data`, one on `apps/app`, each told to skip the
+findings already deferred here and in the language spec's §8.
+
+**Verdict: main is sound.** No Critical findings on either side. The core
+slice came back with nothing above Minor; the reviewer mutation-tested the
+invariants that protect the learner's data (repair never recorded, first tap
+only, `knownOn` stamped once) and confirmed each one fails when broken, and
+checked the migration against the committed `data/vocab.json`.
+
+Three Important findings on the app side, all fixed on `review-fixes-phase-2`:
+
+1. **`say()` did not stop the platform's speech when the target language had
+   no voice.** `finishCurrent?.()` resolves the promise; only `Speech.stop()`
+   reaches the platform, and it sat on the branch that was about to speak. On a
+   phone with no `sv-SE` voice — the son's exact configuration — an option tap
+   would fire its cue over the Spanish prompt still being read. The spec is
+   explicit that any new tap stops what is speaking. Fixed by stopping first
+   and choosing a voice second, plus a stop on the muted/empty early return.
+2. **The settings screen did not scroll.** Five fixed-height cards overflow a
+   small phone, and RN does not shrink them, so the Back button falls off the
+   bottom with only the iOS edge swipe left as a way out — which a child will
+   not know about. Wrapped in a `ScrollView`.
+3. **Home's stat tiles were not grouped for a screen reader**, so VoiceOver
+   read "12" and "KÄNDA" as two stops. This is the pattern phase 2's Task 1
+   ruling exists to prevent, and `StatTile` already does it correctly; home's
+   local `Stat` was a copy that missed it.
+
+One Minor fixed alongside them: `Welcome.tsx` read the splash width out of
+`app.json` at module load with no optional chaining, so reordering or
+unwrapping that plugin entry would throw before React rendered anything — a
+white screen with no way back.
+
+Verified in Expo Go on an iPhone 17 Pro: home and settings render unchanged,
+the splash hands over correctly on a cold start, and a round plays through
+wrong tap → locked red option with its meaning → right tap → next question.
+Not verified: the overflow case itself (no small-screen simulator was booted)
+and the audio (the simulator's speech cannot be heard from here).
+
+### Deferred from this review
+
+Core and tools:
+- `migrateProgress` throws an opaque `TypeError` if `progress` is missing;
+  `fileStore.loadProgress` catches only ENOENT. **(closed in plan 3a)**
+- No test for the `null`-counter shape the migration was written for — all
+  four cases exercise *absent* keys. **(closed in plan 3a)**
+- `applyAnswer`'s optional `direction` reads the same whether it was forgotten
+  or deliberately unknown. **(closed in plan 3a: `Direction | null`, required)**
+- `glossLang` defaults to `'en'` rather than being required, which is the
+  opposite of the choice made for `Word.sv`. The CLI is the reason; it wants a
+  comment saying so.
+- `tools/splash.test.ts` resolves paths from the cwd rather than `projectRoot`,
+  and its `.find(...)[1]` throws at module load if the plugin is absent.
+- "Every greeting has a Swedish gloss" is nearly a type restatement, and it
+  makes the root test suite runtime-import an `apps/app` module.
+- Two Swedish glosses worth a second look: `caminar` → *att promenera*
+  ("to stroll"; *att gå* is spent on `ir`, but *att gå (till fots)* is both
+  accurate and unique), and `lleno` → *full* (reads first as "drunk" in
+  everyday Swedish; *fylld* or *full (t.ex. ett glas)* is clearer for a child).
+- `stats.ts`'s `p.seen === 0 ? 0 : ...` in `leeches` is unreachable.
+  **(closed in plan 3a)**
+- Existing learners' "known" count reads 0 on the first launch after phase 2,
+  because the direction counters start at 0. Unavoidable — the data was never
+  recorded — and consistent with the `knownOn: null` ruling. Not a bug.
+- The original design's leech definition ("highest `lapses`, still
+  short-interval") no longer matches the implementation. The execution log
+  rules the change deliberate; the spec line is worth amending so a future
+  reader does not "fix" it back.
+
+App:
+- Stats-screen leech rows are not grouped for a screen reader either.
+- `FeedbackToast`'s `rgba(255,255,255,0.3)` countdown track is the only colour
+  literal outside `theme.ts`. It wants a named palette entry.
+- Two reduce-motion mechanisms: `PromptWord` uses reanimated's
+  `useReducedMotion()`, `Pepe` hand-rolls `AccessibilityInfo`. Switching `Pepe`
+  would close the already-deferred "animates for one bridge round-trip" finding,
+  delete ten lines, and remove a direct device-API call from a component.
+- A failed `saveProgress` silently drops a round: `persisted.current` is
+  advanced before the await, and the rejection surfaces only as an unhandled
+  promise warning.
+- The streak effect's async IIFE is not cancelled on unmount, so leaving during
+  that window cues on the home screen and sets state on a gone component.
+- `settings.tsx` reads module state at mount while `loadSoundSettings()` is
+  fire-and-forget; safe only because the splash gate is long enough.
+- `timers.current` in the session screen only grows; fired timers are never
+  removed.
+- RN `Switch` is ~51×31pt, under the 44px rule, and its row is not pressable.
+- `accessibilityLiveRegion` is Android-only, so VoiceOver does not announce the
+  toast on iOS.
+- The greeting timer in `Welcome` re-arms when `ready` flips, so worst case the
+  splash sits for ~5 s. Theoretical: both flags flip within a frame.
