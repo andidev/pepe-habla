@@ -136,7 +136,7 @@ The spec defines a known word as one answered correctly **in both directions**, 
 
 **Interfaces:**
 - Consumes: `Direction` from `./types.ts`.
-- Produces: `Progress` gains `rightEsToEn: number` and `rightEnToEs: number`; `applyAnswer(p, correct, today, direction?)` takes an optional fourth argument. Task 3's `isKnown` reads both counters.
+- Produces: `Progress` gains `rightEsToEn: number`, `rightEnToEs: number` and `knownOn: string | null`; `applyAnswer(p, correct, today, direction?)` takes an optional fourth argument; `isKnown(p)` and `KNOWN_THRESHOLD` are exported from `leitner.ts`. Task 3 re-exports `isKnown` through `stats.ts` and counts `knownOn`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -184,6 +184,33 @@ describe('direction counters', () => {
     assert.equal(next.rightEnToEs, 0);
   });
 });
+
+describe('knownOn', () => {
+  test('is stamped the day the word crosses in both directions', () => {
+    const before = at({ rightEsToEn: 3, rightEnToEs: 2 });
+    assert.equal(before.knownOn, null);
+    const next = applyAnswer(before, true, '2026-09-20', 'en->es');
+    assert.equal(next.knownOn, '2026-09-20');
+  });
+
+  test('is not stamped while only one direction is satisfied', () => {
+    const next = applyAnswer(at({ rightEsToEn: 9 }), true, '2026-09-20', 'es->en');
+    assert.equal(next.knownOn, null);
+  });
+
+  test('keeps its original date on later answers', () => {
+    const known = at({ rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-01' });
+    const next = applyAnswer(known, true, '2026-09-20', 'es->en');
+    assert.equal(next.knownOn, '2026-09-01');
+  });
+
+  test('survives a lapse — it records when you learned it, not whether you still know it', () => {
+    const known = at({ rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-01' });
+    const missed = applyAnswer(known, false, '2026-09-20', 'es->en');
+    assert.equal(missed.knownOn, '2026-09-01');
+    assert.equal(missed.box, 1);
+  });
+});
 ```
 
 The `at()` helper at the top of that file builds a `Progress`; extend its defaults with `rightEsToEn: 0, rightEnToEs: 0`.
@@ -202,15 +229,40 @@ In `packages/core/src/types.ts`, inside `interface Progress`, after `wrong`:
   rightEsToEn: number;
   /** Correct answers where the learner produced the Spanish. */
   rightEnToEs: number;
+  /** ISO date this word first counted as known, or null if it never has. */
+  knownOn: string | null;
 ```
+
+`knownOn` is what makes "learned this week" mean what it says. Counting known
+words *last answered* in the past week would drift toward the total as the
+collection grows and old words keep coming up for review — the screen would
+claim you learned a hundred words in a week when you learned none.
 
 - [ ] **Step 4: Maintain them**
 
-In `packages/core/src/leitner.ts`, import the `Direction` type and widen `applyAnswer`:
+In `packages/core/src/leitner.ts`, import the `Direction` type and widen `applyAnswer`.
+
+`isKnown` lives here rather than in `stats.ts` because `applyAnswer` has to ask
+the question to stamp `knownOn`, and a module that derives statistics must not
+be imported by the module that records answers.
 
 ```typescript
 /** Which counter a direction advances. Listening is recognition; pictures are production. */
 const answersInEnglish = (d: Direction): boolean => d === 'es->en' || d === 'listen->en';
+
+/** Correct answers needed in each direction before a word counts as known. */
+export const KNOWN_THRESHOLD = 3;
+
+/**
+ * Known means answered correctly in *both* directions, three times each.
+ *
+ * Recognising `la tienda` is much easier than producing it, and with four
+ * options a guess lands a quarter of the time. The number a learner judges
+ * themselves by has to be harder to earn than the scheduler's.
+ */
+export function isKnown(p: Progress): boolean {
+  return p.rightEsToEn >= KNOWN_THRESHOLD && p.rightEnToEs >= KNOWN_THRESHOLD;
+}
 
 export function applyAnswer(
   p: Progress,
@@ -220,7 +272,7 @@ export function applyAnswer(
 ): Progress {
   const box: Box = correct ? promote(p.box) : 1;
   const scored = correct && direction !== undefined;
-  return {
+  const next: Progress = {
     ...p,
     box,
     seen: p.seen + 1,
@@ -231,10 +283,16 @@ export function applyAnswer(
     lastSeen: today,
     dueOn: addDays(today, INTERVALS[box]),
   };
+  // Stamp the day it crossed, once. A word that later lapses keeps its date —
+  // it was learned then, and "learned this week" is a record of what happened,
+  // not a claim about what you still remember.
+  return next.knownOn === null && isKnown(next)
+    ? { ...next, knownOn: today }
+    : next;
 }
 ```
 
-and in `freshProgress`, add `rightEsToEn: 0, rightEnToEs: 0`.
+and in `freshProgress`, add `rightEsToEn: 0, rightEnToEs: 0, knownOn: null`.
 
 - [ ] **Step 5: Run and watch them pass**
 
@@ -260,6 +318,10 @@ function migrate(db: VocabDb): VocabDb {
       ...p,
       rightEsToEn: p.rightEsToEn ?? 0,
       rightEnToEs: p.rightEnToEs ?? 0,
+      // Deliberately null for words already known before this migration: we do
+      // not know when they were learned, and guessing would inflate the
+      // "this week" figure on the very first launch after upgrading.
+      knownOn: p.knownOn ?? null,
     };
   }
   return { ...db, progress };
@@ -297,7 +359,7 @@ Every number the stats screen shows, computed purely so the arithmetic is tested
 
 **Interfaces:**
 - Consumes: `Word`, `Progress`, `daysBetween`, `isDue`.
-- Produces: `isKnown(p: Progress): boolean`, `summarise(words, progress, today): Summary`, `leeches(words, progress, limit?): Leech[]`, and the types `Summary` and `Leech`. Tasks 4 and 5 render these.
+- Produces: `summarise(words, progress, today): Summary`, `leeches(words, progress, limit?): Leech[]`, and the types `Summary` and `Leech`, plus `isKnown` and `KNOWN_THRESHOLD` re-exported from `leitner.ts` so screens have one import. Tasks 4 and 5 render these.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -306,19 +368,20 @@ Create `packages/core/src/stats.test.ts`:
 ```typescript
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { isKnown, summarise, leeches } from './stats.ts';
+import { summarise, leeches } from './stats.ts';
+import { isKnown } from './leitner.ts';
 import type { Progress, Word } from './types.ts';
 
 const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, pos: 'noun', tier: 1 });
 
 const prog = (over: Partial<Progress> & { id: string }): Progress => ({
   box: 1, seen: 0, right: 0, wrong: 0,
-  rightEsToEn: 0, rightEnToEs: 0,
+  rightEsToEn: 0, rightEnToEs: 0, knownOn: null,
   lastSeen: null, dueOn: '2026-09-20',
   ...over,
 });
 
-describe('isKnown', () => {
+describe('isKnown (re-exported from leitner)', () => {
   test('needs three correct answers in each direction', () => {
     assert.equal(isKnown(prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3 })), true);
   });
@@ -357,14 +420,28 @@ describe('summarise', () => {
     assert.equal(summarise(words, progress, '2026-09-20').accuracy, 75);
   });
 
-  test('learnedThisWeek counts known words last answered within seven days', () => {
+  test('learnedThisWeek counts when a word BECAME known, not when it was last seen', () => {
     const progress = {
-      a: prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3, lastSeen: '2026-09-18' }),
-      b: prog({ id: 'b', rightEsToEn: 3, rightEnToEs: 3, lastSeen: '2026-09-01' }),
+      // Learned three days ago — counts.
+      a: prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-17', lastSeen: '2026-09-17' }),
+      // Learned months ago but reviewed yesterday — must NOT count. This is the
+      // case that would otherwise make the figure drift toward the total.
+      b: prog({ id: 'b', rightEsToEn: 9, rightEnToEs: 9, knownOn: '2026-06-01', lastSeen: '2026-09-19' }),
+      // Practised this week but not known yet.
       c: prog({ id: 'c', rightEsToEn: 1, rightEnToEs: 0, lastSeen: '2026-09-19' }),
     };
     const s = summarise(words, progress, '2026-09-20');
-    assert.equal(s.learnedThisWeek, 1, 'b is too old, c is not known yet');
+    assert.equal(s.learnedThisWeek, 1);
+  });
+
+  test('a word learned today counts', () => {
+    const progress = { a: prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-20' }) };
+    assert.equal(summarise(words, progress, '2026-09-20').learnedThisWeek, 1);
+  });
+
+  test('a word learned exactly seven days ago has aged out', () => {
+    const progress = { a: prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-13' }) };
+    assert.equal(summarise(words, progress, '2026-09-20').learnedThisWeek, 0);
   });
 
   test('ignores progress for words no longer in the list', () => {
@@ -419,10 +496,12 @@ Expected: FAIL — `Cannot find module './stats.ts'`.
 ```typescript
 import type { Progress, Word } from './types.ts';
 import { daysBetween } from './dates.ts';
-import { isDue } from './leitner.ts';
+import { isDue, isKnown } from './leitner.ts';
 
-/** Correct answers needed in each direction before a word counts as known. */
-const KNOWN_THRESHOLD = 3;
+// `isKnown` lives in leitner.ts because applyAnswer has to ask the question to
+// stamp `knownOn`, and the module that records answers must not import the one
+// that derives statistics. Re-exported here so screens have one import.
+export { isKnown, KNOWN_THRESHOLD } from './leitner.ts';
 
 /** Days back that "this week" reaches. */
 const WEEK = 7;
@@ -447,17 +526,6 @@ export interface Leech {
   accuracy: number;
 }
 
-/**
- * Known means answered correctly in *both* directions, three times each.
- *
- * Recognising `la tienda` is much easier than producing it, and with four
- * options a guess lands a quarter of the time. A number the learner looks at to
- * judge their own progress has to be harder to earn than the scheduler's.
- */
-export function isKnown(p: Progress): boolean {
-  return p.rightEsToEn >= KNOWN_THRESHOLD && p.rightEnToEs >= KNOWN_THRESHOLD;
-}
-
 export function summarise(
   words: readonly Word[],
   progress: Readonly<Record<string, Progress>>,
@@ -477,11 +545,12 @@ export function summarise(
     answers += p.seen;
     correct += p.right;
     if (isDue(p, today)) due += 1;
-    if (isKnown(p)) {
-      known += 1;
-      if (p.lastSeen !== null && daysBetween(p.lastSeen, today) < WEEK) {
-        learnedThisWeek += 1;
-      }
+    if (isKnown(p)) known += 1;
+    // Counted on the day it was learned, independently of whether it still is:
+    // measuring "known words seen recently" would creep toward the total as
+    // old words come up for review.
+    if (p.knownOn !== null && daysBetween(p.knownOn, today) < WEEK) {
+      learnedThisWeek += 1;
     }
   }
 
@@ -527,7 +596,7 @@ export function leeches(
 - [ ] **Step 4: Run and watch them pass**
 
 Run: `node --test packages/core/src/stats.test.ts`
-Expected: PASS, 11 tests.
+Expected: PASS, 14 tests.
 
 - [ ] **Step 5: Export and verify the whole suite**
 
