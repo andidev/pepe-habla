@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#FBF6EC",
     "ios": {
       "supportsTablet": true,
       "icon": {
@@ -35,8 +36,8 @@
       [
         "expo-splash-screen",
         {
-          "image": "./assets/splash-icon.png",
-          "imageWidth": 220,
+          "image": "./assets/splash.png",
+          "imageWidth": 300,
           "resizeMode": "contain",
           "backgroundColor": "#FBF6EC"
         }

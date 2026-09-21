@@ -6,7 +6,7 @@ import { fileStore, projectRoot } from '../store/fileStore.ts';
 // own tsconfig); tsc -p apps/app already enforces Greeting.sv at the type level.
 const greetingsPath = '../../apps/app/storage/greetings.ts';
 const { GREETINGS } = (await import(greetingsPath)) as {
-  GREETINGS: Record<string, readonly { es: string; sv?: string }[]>;
+  GREETINGS: readonly { es: string; sv?: string }[];
 };
 
 const words = await fileStore(projectRoot).loadWords();
@@ -36,7 +36,10 @@ describe('seed words', () => {
 
 describe('greetings', () => {
   test('every greeting has a Swedish gloss', () => {
-    const missing = Object.values(GREETINGS).flat().filter((g) => !g.sv || g.sv.trim() === '');
+    const missing = GREETINGS.filter((g) => !g.sv || g.sv.trim() === '');
     assert.deepEqual(missing.map((g) => g.es), []);
+  });
+  test('no line appears twice', () => {
+    assert.deepEqual(duplicates(GREETINGS.map((g) => g.es)), []);
   });
 });
