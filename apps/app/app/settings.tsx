@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
@@ -22,7 +22,15 @@ export default function Settings() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      <View style={{ flex: 1, padding: space.xl, gap: space.md }}>
+      {/* Scrolls because it has to: five cards plus Pepe overflow a small
+          phone, and without this the Back button falls off the bottom with
+          only the iOS edge swipe left as a way out -- which a child will not
+          know about. flexGrow keeps Pepe centred in the space left over when
+          the content does fit. */}
+      <ScrollView
+        contentContainerStyle={{ flexGrow: 1, padding: space.xl, gap: space.md }}
+        showsVerticalScrollIndicator={false}
+      >
         <Text style={{ fontFamily: font.displayHeavy, fontSize: 32, color: colour.ink }}>
           {t.settings.title}
         </Text>
@@ -125,7 +133,7 @@ export default function Settings() {
             <Text style={{ fontFamily: font.display, fontSize: 19, color: colour.ink }}>{t.settings.back}</Text>
           </View>
         </PressableCard>
-      </View>
+      </ScrollView>
     </Screen>
   );
 }
