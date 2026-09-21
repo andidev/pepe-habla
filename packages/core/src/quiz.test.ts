@@ -5,7 +5,7 @@ import { mulberry32 } from './rng.ts';
 import type { PartOfSpeech, Word } from './types.ts';
 
 const word = (id: string, pos: PartOfSpeech = 'noun'): Word => ({
-  id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos, tier: 1,
+  id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos, track: 'words', level: 1, themes: [],
 });
 
 const pool = Array.from({ length: 20 }, (_, i) => word(`w${i}`));

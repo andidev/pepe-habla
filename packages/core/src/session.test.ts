@@ -6,7 +6,7 @@ import {
 import type { Question, Word } from './types.ts';
 
 const word = (id: string): Word =>
-  ({ id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos: 'noun', tier: 1 });
+  ({ id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos: 'noun', track: 'words', level: 1, themes: [] });
 
 const q = (id: string): Question => ({
   word: word(id),

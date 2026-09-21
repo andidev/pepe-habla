@@ -4,8 +4,8 @@ import { selectDaily } from './select.ts';
 import { mulberry32 } from './rng.ts';
 import type { Progress, Word } from './types.ts';
 
-const word = (id: string, tier: 1 | 2 | 3 = 1): Word => ({
-  id, es: id, en: id, sv: id, pos: 'noun', tier,
+const word = (id: string, level = 1): Word => ({
+  id, es: id, en: id, sv: id, pos: 'noun', track: 'words', level, themes: ['verbos'],
 });
 
 const prog = (id: string, reps: number, dueOn: string): Progress => ({
@@ -32,7 +32,7 @@ describe('selectDaily', () => {
     assert.equal(selectDaily(words, {}, '2026-09-19', 10, rng()).length, 10);
   });
 
-  test('introduces lower tiers before higher ones', () => {
+  test('introduces lower levels before higher ones', () => {
     const words = [word('hard', 3), word('mid', 2), word('easy', 1)];
     const picked = selectDaily(words, {}, '2026-09-19', 2, rng());
     assert.deepEqual(picked.map((w) => w.id), ['easy', 'mid']);

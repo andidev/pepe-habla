@@ -2,6 +2,8 @@
  * Shared data shapes. Pure types only — no runtime code, no I/O.
  */
 
+import type { Track } from './levels.ts';
+
 export type PartOfSpeech =
   | 'noun'
   | 'verb'
@@ -21,8 +23,15 @@ export interface Word {
   /** Swedish: "boken". Required — a missing gloss must fail the build, not the round. */
   sv: string;
   pos: PartOfSpeech;
-  /** 1 = end of A1, 2 = A2, 3 = A2+/B1. Lower tiers are introduced first. */
-  tier: 1 | 2 | 3;
+  /** Which ladder this card belongs to. Required: a card with no track would silently never appear. */
+  track: Track;
+  /** 1-based level within that track. Lower levels are introduced first. */
+  level: number;
+  /**
+   * Tags that cut across the levels. At least one on every words card; a
+   * grammar card carries its tense or pattern. They gate nothing.
+   */
+  themes: readonly string[];
   /** Asset key for Pepe art illustrating this word, when it exists. */
   sprite?: string;
   /** Usage note, e.g. where Mexico differs from Spain. */

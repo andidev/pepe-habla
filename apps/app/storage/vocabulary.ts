@@ -1,7 +1,7 @@
 import type { Word } from '@pepe/core';
-import tier1 from '../../../data/seed/tier1.json';
-import tier2 from '../../../data/seed/tier2.json';
-import tier3 from '../../../data/seed/tier3.json';
+import words1 from '../../../data/seed/words-1.json';
+import words2 from '../../../data/seed/words-2.json';
+import words3 from '../../../data/seed/words-3.json';
 import manifest from '../assets/pepe/manifest.json';
 
 /**
@@ -10,7 +10,7 @@ import manifest from '../assets/pepe/manifest.json';
  * Words come from the repo rather than the network: the app is offline, and
  * the list only changes when a new build ships anyway.
  */
-const SEED = [...tier1, ...tier2, ...tier3] as Word[];
+const SEED = [...words1, ...words2, ...words3] as Word[];
 
 export const WORDS: Word[] = SEED.map((w) => {
   const sprite = (manifest.vocab as Record<string, string>)[w.id];

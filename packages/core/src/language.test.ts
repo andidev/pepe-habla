@@ -5,7 +5,7 @@ import {
 } from './language.ts';
 import type { Word } from './types.ts';
 
-const w: Word = { id: 'el-libro', es: 'el libro', en: 'the book', sv: 'boken', pos: 'noun', tier: 1 };
+const w: Word = { id: 'el-libro', es: 'el libro', en: 'the book', sv: 'boken', pos: 'noun', track: 'words', level: 1, themes: [] };
 
 describe('glossLanguage', () => {
   test('Swedish glosses in Swedish', () => assert.equal(glossLanguage('sv'), 'sv'));
