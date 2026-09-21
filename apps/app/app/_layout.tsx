@@ -10,6 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Welcome } from '../components/Welcome';
 import { loadSoundSettings, prepareAudio, prepareSpeech } from '../feedback';
+import { LanguageProvider } from '../i18n/language';
 import { colour } from '../theme';
 
 // Both must run in the global scope, before the first render.
@@ -44,28 +45,32 @@ export default function RootLayout() {
 
   if (!ready || !held) {
     return (
-      <Welcome
-        fontsReady={loaded}
-        onShown={() => {
-          // Hand over only once our own view has painted. Hiding the native
-          // splash any earlier shows a blank frame between the two.
-          if (hidden.current) return;
-          hidden.current = true;
-          void SplashScreen.hideAsync();
-        }}
-      />
+      <LanguageProvider>
+        <Welcome
+          fontsReady={loaded}
+          onShown={() => {
+            // Hand over only once our own view has painted. Hiding the native
+            // splash any earlier shows a blank frame between the two.
+            if (hidden.current) return;
+            hidden.current = true;
+            void SplashScreen.hideAsync();
+          }}
+        />
+      </LanguageProvider>
     );
   }
 
   return (
-    <SafeAreaProvider>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colour.ground },
-        }}
-      />
-    </SafeAreaProvider>
+    <LanguageProvider>
+      <SafeAreaProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colour.ground },
+          }}
+        />
+      </SafeAreaProvider>
+    </LanguageProvider>
   );
 }

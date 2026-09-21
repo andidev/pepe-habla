@@ -4,6 +4,7 @@ import Animated, {
   useAnimatedStyle, useSharedValue, withTiming,
 } from 'react-native-reanimated';
 import { pickOne } from '@pepe/core';
+import { useLanguage } from '../i18n/language';
 import { GREETINGS } from '../storage/greetings';
 import { POSES, type PoseName } from '../storage/vocabulary';
 import { colour, font, space } from '../theme';
@@ -32,21 +33,22 @@ interface Props {
 export function Welcome({ onShown, fontsReady }: Props) {
   const [pose] = useState<PoseName>(() => pickOne(POSE_NAMES, Math.random));
   const [greeting] = useState(() => pickOne(GREETINGS[pose], Math.random));
+  const { gloss, ready } = useLanguage();
 
   const fade = useSharedValue(0);
   useEffect(() => {
-    if (fontsReady) fade.value = withTiming(1, { duration: 260 });
-  }, [fontsReady, fade]);
+    if (fontsReady && ready) fade.value = withTiming(1, { duration: 260 });
+  }, [fontsReady, ready, fade]);
   const fading = useAnimatedStyle(() => ({ opacity: fade.value }));
 
   return (
     <View style={styles.root} onLayout={onShown}>
       <Pepe pose={pose} motion="breathe" size={220} />
       <View style={styles.caption}>
-        {fontsReady ? (
+        {fontsReady && ready ? (
           <Animated.View style={fading}>
             <Text style={styles.spanish}>{greeting.es}</Text>
-            <Text style={styles.english}>{greeting.en}</Text>
+            <Text style={styles.gloss}>{gloss === 'sv' ? greeting.sv : greeting.en}</Text>
           </Animated.View>
         ) : null}
       </View>
@@ -74,7 +76,7 @@ const styles = StyleSheet.create({
     color: colour.ink,
     textAlign: 'center',
   },
-  english: {
+  gloss: {
     fontFamily: font.body,
     fontSize: 15,
     color: colour.muted,
