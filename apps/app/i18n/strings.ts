@@ -12,7 +12,6 @@ export interface Strings {
   home: {
     waiting: (due: number) => string;
     caughtUp: string;
-    level: string;
     known: string;
     due: string;
     total: string;
@@ -88,7 +87,6 @@ const es: Strings = {
   home: {
     waiting: (n) => `¡Órale! Tienes ${n} ${n === 1 ? 'palabra esperándote' : 'palabras esperándote'}.`,
     caughtUp: 'Todo al día. ¿Quieres aprender palabras nuevas?',
-    level: 'NIVEL 1',
     known: 'CONOCIDAS',
     due: 'POR REPASAR',
     total: 'EN TOTAL',
@@ -230,7 +228,6 @@ const sv: Strings = {
   home: {
     waiting: (n) => `¡Órale! Du har ${n} ord som väntar.`,
     caughtUp: 'Allt är klart. Vill du lära dig nya ord?',
-    level: 'NIVÅ 1',
     known: 'KÄNDA',
     due: 'ATT REPETERA',
     total: 'TOTALT',
@@ -372,7 +369,6 @@ const en: Strings = {
   home: {
     waiting: (n) => `¡Órale! You have ${n} ${n === 1 ? 'word' : 'words'} waiting.`,
     caughtUp: 'All caught up. Want to learn some new words?',
-    level: 'LEVEL 1',
     known: 'KNOWN',
     due: 'TO REVIEW',
     total: 'IN TOTAL',
