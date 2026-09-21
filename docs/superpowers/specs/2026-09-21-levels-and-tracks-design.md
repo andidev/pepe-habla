@@ -36,7 +36,7 @@ reads `tier` today — `selectDaily`'s ordering, the seed validator — moves to
 
 **Grammar is cards, not a new exercise.** A grammar card is a Spanish form and
 its meaning in the learner's language — `comí` ↔ "I ate" / "jag åt". It uses
-the same four question types, the same retry loop, the same toasts and the
+the same question types, the same retry loop, the same toasts and the
 same scheduler as a word. No new screen or question type.
 
 **Grammar never depends on words.** Grammar cards are built from the ~40 most
