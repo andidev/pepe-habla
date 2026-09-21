@@ -45,6 +45,7 @@ export default function RootLayout() {
   if (!ready || !held) {
     return (
       <Welcome
+        fontsReady={loaded}
         onShown={() => {
           // Hand over only once our own view has painted. Hiding the native
           // splash any earlier shows a blank frame between the two.

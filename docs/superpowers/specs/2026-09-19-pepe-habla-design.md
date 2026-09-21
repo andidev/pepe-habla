@@ -324,6 +324,9 @@ A mute toggle lives in settings. Haptics stay on when sound is muted.
 
 **Pronunciation** uses `expo-speech` with the `es-MX` voice: a speaker button on
 every word, and automatic playback of the correct word after a miss.
+No recordings ship: the macOS voices that could render them are licensed for
+personal use only, so a store build relies on the device's own voice. A device
+with no Spanish voice stays silent rather than read Spanish with an English one.
 
 ## Screens
 

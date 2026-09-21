@@ -9,7 +9,8 @@ const word = (id: string, tier: 1 | 2 | 3 = 1): Word => ({
 });
 
 const prog = (id: string, box: Progress['box'], dueOn: string): Progress => ({
-  id, box, seen: 5, right: 3, wrong: 2, lastSeen: '2026-09-01', dueOn,
+  id, box, seen: 5, right: 3, wrong: 2, rightEsToEn: 0, rightEnToEs: 0, knownOn: null,
+  lastSeen: '2026-09-01', dueOn,
 });
 
 const rng = () => mulberry32(42);

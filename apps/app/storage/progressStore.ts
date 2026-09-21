@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applyAnswer, freshProgress, type VocabDb } from '@pepe/core';
+import { applyAnswer, freshProgress, migrateProgress, type VocabDb, type StoredVocabDb } from '@pepe/core';
 import type { AnswerRecord } from '@pepe/core';
 import seededProgress from '../../../data/vocab.json';
 
@@ -14,15 +14,17 @@ export async function loadProgress(): Promise<VocabDb> {
   const raw = await AsyncStorage.getItem(KEY);
   if (raw !== null) {
     try {
-      return JSON.parse(raw) as VocabDb;
+      return migrateProgress(JSON.parse(raw) as StoredVocabDb);
     } catch {
       // Keep whatever we could not parse. Silently discarding months of
       // practice is worse than any error we could show.
       void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
-      return seededProgress as VocabDb;
+      // The bundled seed predates the direction counters, so its shape does
+      // not satisfy VocabDb until migrateProgress() fills them in.
+      return migrateProgress(seededProgress as StoredVocabDb);
     }
   }
-  return seededProgress as VocabDb;
+  return migrateProgress(seededProgress as StoredVocabDb);
 }
 
 export async function saveProgress(db: VocabDb): Promise<void> {
@@ -44,7 +46,7 @@ export function recordAnswers(
   const progress = { ...db.progress };
   for (const record of records) {
     const before = progress[record.wordId] ?? freshProgress(record.wordId, today);
-    progress[record.wordId] = applyAnswer(before, record.correct, today);
+    progress[record.wordId] = applyAnswer(before, record.correct, today, record.direction);
   }
   return { ...db, progress };
 }

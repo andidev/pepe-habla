@@ -27,6 +27,7 @@ describe('fileStore', () => {
     const db = emptyDb();
     db.progress['ser'] = {
       id: 'ser', box: 3, seen: 4, right: 3, wrong: 1,
+      rightEsToEn: 0, rightEnToEs: 0, knownOn: null,
       lastSeen: '2026-09-19', dueOn: '2026-09-23',
     };
     await store.saveProgress(db);

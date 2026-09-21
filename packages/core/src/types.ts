@@ -37,6 +37,12 @@ export interface Progress {
   seen: number;
   right: number;
   wrong: number;
+  /** Correct answers where the learner read Spanish and chose English. */
+  rightEsToEn: number;
+  /** Correct answers where the learner produced the Spanish. */
+  rightEnToEs: number;
+  /** ISO date this word first counted as known, or null if it never has. */
+  knownOn: string | null;
   /** ISO date (YYYY-MM-DD) the word was last asked, or null if never. */
   lastSeen: string | null;
   /** ISO date the word is next due. */
