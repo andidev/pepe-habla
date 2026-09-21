@@ -160,7 +160,15 @@ let finishCurrent: (() => void) | null = null;
  */
 export function say(text: string, voice: Voice): Promise<void> {
   finishCurrent?.();
-  if (muted || text.length === 0) return Promise.resolve();
+  // A new tap silences the old one even when this call has nothing to say.
+  // finishCurrent() only resolves the previous promise; Speech.stop() is the
+  // only thing that reaches the platform. Without this, a muted app -- or a
+  // phone with no voice for this language -- leaves the last word running
+  // underneath the next one.
+  if (muted || text.length === 0) {
+    attempt(() => Speech.stop());
+    return Promise.resolve();
+  }
 
   return new Promise<void>((resolve) => {
     let done = false;
@@ -177,10 +185,10 @@ export function say(text: string, voice: Voice): Promise<void> {
     (speechReady ?? Promise.resolve())
       .then(async () => {
         if (done) return;
+        await Speech.stop();                        // stop first, speak second
+        if (done) return;
         const id = voices[voice];
         if (id === null) { finish(); return; }      // no voice: silence
-        await Speech.stop();
-        if (done) return;
         Speech.speak(text, {
           language: LOCALE[voice],
           voice: id,
