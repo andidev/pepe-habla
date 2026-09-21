@@ -1,7 +1,10 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import { RECORDINGS } from './storage/speech';
+
+const MUTE_KEY = 'pepe-habla/muted/v1';
+const EFFECTS_KEY = 'pepe-habla/effects/v1';
 
 export type CueName = 'tap' | 'correct' | 'wrong' | 'complete' | 'streak' | 'levelup';
 
@@ -31,7 +34,6 @@ const HAPTIC: Record<CueName, () => void> = {
 };
 
 let players: Partial<Record<CueName, AudioPlayer>> = {};
-let muted = false;
 
 /**
  * Every device API here is optional. On the web, haptics fall back to the
@@ -65,7 +67,19 @@ export async function prepareAudio(): Promise<void> {
   }
 }
 
+let muted = false;
+/**
+ * Sound effects and haptics, separately from the voice. A learner who hates
+ * being buzzed at for a mistake would otherwise mute everything, and lose the
+ * pronunciation along with the judgement.
+ */
+let effects = true;
+
 export function cue(name: CueName): void {
+  // Spec §2's table: the effects switch only silences touch while there is
+  // sound to silence it from. With Sound off, effects is hidden and haptics
+  // must still fire, so effects alone must not skip the haptic below.
+  if (!effects && !muted) return;
   attempt(HAPTIC[name]);                 // haptics ignore the mute switch
   if (muted) return;
   const player = players[name];
@@ -74,29 +88,38 @@ export function cue(name: CueName): void {
 }
 
 /**
- * Pronunciation, best source first.
+ * Pronunciation, in three languages.
  *
- * 1. A bundled recording — identical on every device, offline.
- * 2. Device speech with an explicitly chosen Mexican voice.
- * 3. The nearest Spanish voice the device has.
- * 4. Silence.
- *
- * Step 4 is deliberate: a device with no Spanish voice will happily read
- * Spanish with an English mouth, and teaching a wrong pronunciation is worse
- * than teaching none.
+ * Spanish is always Spanish; Swedish and English read the glosses. For each,
+ * the best device voice for that language, or silence. Silence is deliberate:
+ * a device with no Swedish voice would read Swedish with an English mouth, and
+ * teaching a wrong pronunciation is worse than teaching none.
  */
-let spanishVoice: string | null = null;
-let voicesChecked = false;
-let wordPlayer: AudioPlayer | null = null;
+export type Voice = 'es' | 'sv' | 'en';
 
-function rankVoice(v: { language: string; identifier: string }): number {
+const LOCALE: Record<Voice, string> = { es: 'es-MX', sv: 'sv-SE', en: 'en-US' };
+
+function rankVoice(want: Voice, v: { language: string; quality?: string }): number {
   const lang = v.language.toLowerCase().replace('_', '-');
-  if (lang.startsWith('es-mx')) return 100;
-  if (lang.startsWith('es-419') || /^es-(ar|co|cl|pe|us)/.test(lang)) return 60;
-  if (lang.startsWith('es')) return 30;
-  return 0;
+  let score = 0;
+  if (want === 'es') {
+    if (lang.startsWith('es-mx')) score = 100;
+    else if (lang.startsWith('es-419') || /^es-(ar|co|cl|pe|us)/.test(lang)) score = 60;
+    else if (lang.startsWith('es')) score = 30;
+  } else if (want === 'sv') {
+    if (lang.startsWith('sv-se')) score = 100;
+    else if (lang.startsWith('sv')) score = 60;
+  } else {
+    if (lang.startsWith('en-us')) score = 100;
+    else if (lang.startsWith('en-gb')) score = 90;
+    else if (lang.startsWith('en')) score = 50;
+  }
+  // Between two voices with the same accent, the enhanced one is far less robotic.
+  return score > 0 && v.quality === 'Enhanced' ? score + 5 : score;
 }
 
+const voices: Record<Voice, string | null> = { es: null, sv: null, en: null };
+let voicesChecked = false;
 let speechReady: Promise<void> | null = null;
 
 /** Called once at startup, after prepareAudio. */
@@ -104,13 +127,15 @@ export function prepareSpeech(): Promise<void> {
   speechReady = (async () => {
     try {
       const all = await Speech.getAvailableVoicesAsync();
-      const best = all
-        .map((v) => ({ v, score: rankVoice(v) }))
-        .filter((x) => x.score > 0)
-        .sort((a, b) => b.score - a.score)[0];
-      spanishVoice = best ? best.v.identifier : null;
+      for (const want of Object.keys(voices) as Voice[]) {
+        const best = all
+          .map((v) => ({ v, score: rankVoice(want, v) }))
+          .filter((x) => x.score > 0)
+          .sort((a, b) => b.score - a.score)[0];
+        voices[want] = best ? best.v.identifier : null;
+      }
     } catch {
-      spanishVoice = null;
+      for (const want of Object.keys(voices) as Voice[]) voices[want] = null;
     } finally {
       voicesChecked = true;
     }
@@ -118,52 +143,110 @@ export function prepareSpeech(): Promise<void> {
   return speechReady;
 }
 
-/** False when this device can neither play a recording nor speak Spanish. */
-export function canSpeak(word: { id: string }): boolean {
-  if (RECORDINGS[word.id] !== undefined) return true;
-  return voicesChecked && spanishVoice !== null;
+/** False when this device has no voice for the language. */
+export function canSpeak(voice: Voice = 'es'): boolean {
+  return voicesChecked && voices[voice] !== null;
 }
 
-export function speak(word: { id: string; es: string }): void {
-  if (muted) return;
+/** Resolves the utterance in flight, if any. Only one voice speaks at a time. */
+let finishCurrent: (() => void) | null = null;
 
-  const recording = RECORDINGS[word.id];
-  if (recording !== undefined) {
-    attempt(() => {
-      if (wordPlayer === null) {
-        wordPlayer = createAudioPlayer(recording);
-      } else {
-        wordPlayer.replace(recording);      // one player for all 384 words
-      }
-      return wordPlayer.seekTo(0).then(() => wordPlayer?.play());
-    });
-    return;
-  }
+/**
+ * Speak, and say when you are done.
+ *
+ * The answer loop chains on this — word first, then the right/wrong cue — so
+ * it must always resolve: on done, on stop, on error, when another `say`
+ * replaces it, and after a guard timeout in case the platform never calls back.
+ */
+export function say(text: string, voice: Voice): Promise<void> {
+  finishCurrent?.();
+  if (muted || text.length === 0) return Promise.resolve();
 
-  // No recording. Wait for the voice check before speaking — speaking with
-  // whatever voice the device happens to default to is the bug this whole
-  // task exists to fix.
-  attempt(() => (speechReady ?? Promise.resolve()).then(() => {
-    const voice = spanishVoice;
-    if (voice === null) return;                     // step 4: silence
-    return Speech.stop().then(() => Speech.speak(word.es, {
-      language: 'es-MX',
-      rate: 0.95,
-      pitch: 1.0,
-      voice,
-    }));
-  }));
+  return new Promise<void>((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      clearTimeout(guard);
+      if (finishCurrent === finish) finishCurrent = null;
+      resolve();
+    };
+    const guard = setTimeout(finish, 1500 + 80 * text.length);
+    finishCurrent = finish;
+
+    (speechReady ?? Promise.resolve())
+      .then(async () => {
+        if (done) return;
+        const id = voices[voice];
+        if (id === null) { finish(); return; }      // no voice: silence
+        await Speech.stop();
+        if (done) return;
+        Speech.speak(text, {
+          language: LOCALE[voice],
+          voice: id,
+          rate: 0.95,
+          pitch: 1.0,
+          onDone: finish,
+          onStopped: finish,
+          onError: finish,
+        });
+      })
+      .catch(finish);
+  });
+}
+
+/** Fire-and-forget Spanish, for the word list. */
+export function speak(word: { es: string }): void {
+  void say(word.es, 'es');
 }
 
 export function stopSpeaking(): void {
+  finishCurrent?.();
   attempt(() => Speech.stop());
 }
 
 export function setMuted(next: boolean): void {
   muted = next;
-  if (next) attempt(() => Speech.stop());
+  if (next) stopSpeaking();
 }
 
 export function isMuted(): boolean {
   return muted;
+}
+
+export function effectsOn(): boolean {
+  return effects;
+}
+
+/** Called once at startup, before the first cue. */
+export async function loadSoundSettings(): Promise<void> {
+  try {
+    const [m, e] = await Promise.all([
+      AsyncStorage.getItem(MUTE_KEY),
+      AsyncStorage.getItem(EFFECTS_KEY),
+    ]);
+    muted = m === 'true';
+    effects = e !== 'false';
+  } catch {
+    muted = false;
+    effects = true;
+  }
+}
+
+export async function saveMuted(next: boolean): Promise<void> {
+  setMuted(next);
+  try {
+    await AsyncStorage.setItem(MUTE_KEY, String(next));
+  } catch {
+    // A preference that fails to save is not worth interrupting practice for.
+  }
+}
+
+export async function saveEffects(next: boolean): Promise<void> {
+  effects = next;
+  try {
+    await AsyncStorage.setItem(EFFECTS_KEY, String(next));
+  } catch {
+    // As above.
+  }
 }

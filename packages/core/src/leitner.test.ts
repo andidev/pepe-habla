@@ -9,8 +9,11 @@ const at = (over: Partial<Progress> = {}): Progress => ({
   seen: 0,
   right: 0,
   wrong: 0,
+  rightEsToEn: 0,
+  rightEnToEs: 0,
   lastSeen: null,
   dueOn: '2026-09-19',
+  knownOn: null,
   ...over,
 });
 
@@ -76,5 +79,69 @@ describe('isDue', () => {
   });
   test('tomorrow does not', () => {
     assert.equal(isDue(at({ dueOn: '2026-09-20' }), '2026-09-19'), false);
+  });
+});
+
+describe('direction counters', () => {
+  test('a new word starts with both at zero', () => {
+    const p = freshProgress('la-cuenta', '2026-09-20');
+    assert.equal(p.rightEsToEn, 0);
+    assert.equal(p.rightEnToEs, 0);
+  });
+
+  test('a correct recognition answer counts only toward es->en', () => {
+    const next = applyAnswer(at(), true, '2026-09-20', 'es->en');
+    assert.equal(next.rightEsToEn, 1);
+    assert.equal(next.rightEnToEs, 0);
+  });
+
+  test('a correct production answer counts only toward en->es', () => {
+    const next = applyAnswer(at(), true, '2026-09-20', 'en->es');
+    assert.equal(next.rightEsToEn, 0);
+    assert.equal(next.rightEnToEs, 1);
+  });
+
+  test('a picture answer counts as production', () => {
+    const next = applyAnswer(at(), true, '2026-09-20', 'picture->es');
+    assert.equal(next.rightEnToEs, 1);
+  });
+
+  test('a wrong answer counts toward neither', () => {
+    const next = applyAnswer(at({ rightEsToEn: 2 }), false, '2026-09-20', 'es->en');
+    assert.equal(next.rightEsToEn, 2, 'a miss must not erase past successes either');
+    assert.equal(next.rightEnToEs, 0);
+  });
+
+  test('omitting the direction leaves both counters alone', () => {
+    const next = applyAnswer(at({ rightEsToEn: 1 }), true, '2026-09-20');
+    assert.equal(next.rightEsToEn, 1);
+    assert.equal(next.rightEnToEs, 0);
+  });
+});
+
+describe('knownOn', () => {
+  test('is stamped the day the word crosses in both directions', () => {
+    const before = at({ rightEsToEn: 3, rightEnToEs: 2 });
+    assert.equal(before.knownOn, null);
+    const next = applyAnswer(before, true, '2026-09-20', 'en->es');
+    assert.equal(next.knownOn, '2026-09-20');
+  });
+
+  test('is not stamped while only one direction is satisfied', () => {
+    const next = applyAnswer(at({ rightEsToEn: 9 }), true, '2026-09-20', 'es->en');
+    assert.equal(next.knownOn, null);
+  });
+
+  test('keeps its original date on later answers', () => {
+    const known = at({ rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-01' });
+    const next = applyAnswer(known, true, '2026-09-20', 'es->en');
+    assert.equal(next.knownOn, '2026-09-01');
+  });
+
+  test('survives a lapse — it records when you learned it, not whether you still know it', () => {
+    const known = at({ rightEsToEn: 3, rightEnToEs: 3, knownOn: '2026-09-01' });
+    const missed = applyAnswer(known, false, '2026-09-20', 'es->en');
+    assert.equal(missed.knownOn, '2026-09-01');
+    assert.equal(missed.box, 1);
   });
 });

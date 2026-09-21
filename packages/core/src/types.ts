@@ -21,6 +21,8 @@ export interface Word {
   es: string;
   /** English: "the coat". */
   en: string;
+  /** Swedish: "boken". Required — a missing gloss must fail the build, not the round. */
+  sv: string;
   pos: PartOfSpeech;
   /** 1 = end of A1, 2 = A2, 3 = A2+/B1. Lower tiers are introduced first. */
   tier: 1 | 2 | 3;
@@ -37,6 +39,12 @@ export interface Progress {
   seen: number;
   right: number;
   wrong: number;
+  /** Correct answers where the learner read Spanish and chose English. */
+  rightEsToEn: number;
+  /** Correct answers where the learner produced the Spanish. */
+  rightEnToEs: number;
+  /** ISO date this word first counted as known, or null if it never has. */
+  knownOn: string | null;
   /** ISO date (YYYY-MM-DD) the word was last asked, or null if never. */
   lastSeen: string | null;
   /** ISO date the word is next due. */
@@ -49,8 +57,12 @@ export interface VocabDb {
   progress: Record<string, Progress>;
 }
 
-/** Which way a question is asked. */
-export type Direction = 'es->en' | 'en->es' | 'listen->en' | 'picture->es';
+/**
+ * Which way a question is asked. "en" means the gloss language, which is
+ * Swedish or English depending on the app language; the names predate that
+ * and are kept because stored counters (rightEsToEn, rightEnToEs) use them.
+ */
+export type Direction = 'es->en' | 'en->es' | 'picture->es';
 
 export interface Question {
   word: Word;

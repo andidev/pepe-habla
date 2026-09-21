@@ -176,6 +176,8 @@ Clustering only the *introduction* gets the coherence without paying that cost.
 
 ## Question types
 
+> **Superseded in part by `2026-09-21-language-and-game-flow-design.md`:** listening questions are gone and a question stays open until the right tap.
+
 All four use the same four-option tap UI. Distractors are drawn from the
 learner's own vocabulary, preferring the same part of speech.
 
@@ -223,6 +225,8 @@ without being a novelty face) over Figtree for interface text.
 **The interface is in Spanish** — ¡Vamos!, Siguiente, ¿Otra ronda?, Se te
 atragantan. Free immersion in the chrome, and reversible if it ever gets in
 the way.
+
+> **Superseded by `2026-09-21-language-and-game-flow-design.md`:** the interface language is now a setting (Svenska, English, Español).
 
 **Options are a full-width vertical list, never a 2×2 grid.** Both were built
 and compared. The list wins on tapping (350×56 = 19,600px² per row against
@@ -324,6 +328,9 @@ A mute toggle lives in settings. Haptics stay on when sound is muted.
 
 **Pronunciation** uses `expo-speech` with the `es-MX` voice: a speaker button on
 every word, and automatic playback of the correct word after a miss.
+No recordings ship: the macOS voices that could render them are licensed for
+personal use only, so a store build relies on the device's own voice. A device
+with no Spanish voice stays silent rather than read Spanish with an English one.
 
 ## Screens
 
