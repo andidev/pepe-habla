@@ -17,8 +17,11 @@ const SPLASH_IMAGE = require('../assets/splash.png');
  * and the two can never disagree. tools/make_splash.py builds the image from
  * the same number.
  */
+// Optional all the way down: this runs at module load, so an unwrapped or
+// reordered plugin entry would throw before React renders anything -- a white
+// screen with no way back. 300 is what app.json says today.
 const SPLASH: number = require('../app.json').expo.plugins
-  .find((p: unknown) => Array.isArray(p) && p[0] === 'expo-splash-screen')[1].imageWidth;
+  .find((p: unknown) => Array.isArray(p) && p[0] === 'expo-splash-screen')?.[1]?.imageWidth ?? 300;
 
 /** How long the greeting stays up once it has appeared, unless tapped away. */
 const GREETING_MS = 2500;
