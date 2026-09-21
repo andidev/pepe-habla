@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pepe Habla mocks</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,800;9..144,900&family=Figtree:wght@600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ground:#FBF6EC; --surface:#FFFFFF; --ink:#1C1714; --muted:#6B6259;
+    --chile:#D1453B; --cactus:#2E7D5B; --marigold:#E9A020;
+    --page:#E9E3D6;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--page); color:var(--ink); font-family:Figtree, system-ui, sans-serif; font-weight:600; padding:28px 16px 60px; }
+  h1 { font-family:Fraunces, serif; font-weight:900; font-size:30px; }
+  .intro { max-width:1000px; color:var(--muted); font-size:15px; line-height:1.5; margin:6px 0 26px; }
+  h2 { font-family:Fraunces, serif; font-weight:800; font-size:21px; margin:34px 0 4px; }
+  .rowNote { color:var(--muted); font-size:14px; margin-bottom:16px; max-width:1000px; line-height:1.45; }
+  .row { display:flex; gap:26px; flex-wrap:wrap; align-items:flex-start; }
+  .cell { width:290px; }
+  .cap { font-weight:800; font-size:14px; margin:10px 2px 3px; }
+  .capNum { display:inline-block; width:22px; height:22px; border-radius:50%; background:var(--ink); color:#fff; text-align:center; line-height:22px; font-size:12px; margin-right:6px; }
+  .sub { font-size:13px; color:var(--muted); line-height:1.45; margin:0 2px; }
+  .audio { margin-top:6px; font-size:12.5px; background:#fff; border:1.5px dashed var(--muted); border-radius:10px; padding:6px 9px; line-height:1.45; }
+  .audio b { font-weight:800; }
+
+  /* phone */
+  .phone { width:290px; height:600px; background:var(--ground); border:3px solid var(--ink); border-radius:38px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+  .status { height:34px; flex:none; }
+  .top { display:flex; align-items:center; gap:10px; padding:4px 16px 0; }
+  .x { width:30px; height:30px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:18px; font-weight:800; }
+  .bar { flex:1; height:13px; border:2px solid var(--ink); border-radius:99px; background:#fff; overflow:hidden; }
+  .bar i { display:block; height:100%; background:var(--cactus); }
+  .count { font-weight:800; font-size:12px; color:var(--muted); }
+  .body { flex:1; display:flex; flex-direction:column; padding:0 16px; }
+  .task { font-weight:800; font-size:11px; letter-spacing:1px; color:var(--muted); margin:18px 0 8px; }
+  .prompt { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+
+  /* the word + sound slot */
+  .word { display:inline-flex; align-items:center; gap:10px; padding:6px 10px; border-radius:14px; position:relative; }
+  .word .w { font-family:Fraunces, serif; font-weight:900; font-size:38px; line-height:1.1; }
+  .slot { width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex:none; }
+  .spk { width:28px; height:28px; border-radius:50%; border:2px solid var(--muted); display:flex; align-items:center; justify-content:center; }
+  .spk svg { width:15px; height:15px; }
+  .wave { display:flex; gap:3px; align-items:center; height:22px; }
+  .wave i { display:block; width:4px; border-radius:2px; background:var(--marigold); animation:bounce 0.9s ease-in-out infinite; }
+  .wave i:nth-child(1){height:10px; animation-delay:0s}
+  .wave i:nth-child(2){height:20px; animation-delay:.15s}
+  .wave i:nth-child(3){height:14px; animation-delay:.3s}
+  @keyframes bounce { 0%,100%{transform:scaleY(.45)} 50%{transform:scaleY(1)} }
+  .tapRing { position:absolute; inset:0; border:2px dashed var(--marigold); border-radius:14px; }
+
+  .opts { display:flex; flex-direction:column; gap:9px; padding-bottom:14px; }
+  .opt { position:relative; }
+  .opt .face { position:relative; z-index:1; min-height:50px; border:2px solid var(--ink); border-radius:14px; background:#fff; display:flex; align-items:center; justify-content:space-between; padding:0 15px; font-weight:800; font-size:16px; }
+  .opt::after { content:""; position:absolute; left:0; right:0; top:4px; bottom:-4px; border-radius:14px; background:var(--ink); }
+  .opt.wrong .face { background:var(--chile); color:#fff; }
+  .opt.right .face { background:var(--cactus); color:#fff; }
+  .opt.dim { opacity:.45; }
+  .opt .gloss { font-weight:600; font-size:12.5px; opacity:.92; margin-left:8px; }
+  .opt.lock .face { cursor:not-allowed; }
+
+  /* top toast */
+  .toast { position:absolute; left:10px; right:10px; top:40px; z-index:5; border:2px solid var(--ink); border-radius:18px; padding:8px 14px 8px 8px; display:flex; align-items:center; gap:10px; color:#fff; box-shadow:0 4px 0 var(--ink); }
+  .toast.bad { background:var(--chile); }
+  .toast.good { background:var(--cactus); padding-bottom:14px; }
+  .toast img { width:58px; height:58px; object-fit:contain; background:#fff; border-radius:12px; border:2px solid var(--ink); }
+  .toast .t1 { font-family:Fraunces, serif; font-weight:800; font-size:21px; line-height:1.1; }
+  .toast .t2 { font-size:12.5px; opacity:.95; margin-top:2px; }
+  .toast .timer { position:absolute; left:12px; right:12px; bottom:6px; height:4px; border-radius:2px; background:rgba(255,255,255,.3); overflow:hidden; }
+  .toast .timer i { display:block; height:100%; width:40%; background:#fff; }
+  .slide { position:absolute; left:50%; top:4px; transform:translateX(-50%); font-size:10px; font-weight:800; color:var(--muted); z-index:6; letter-spacing:.5px; }
+
+  .tapAnywhere { text-align:center; font-size:12px; color:var(--muted); font-weight:800; padding-bottom:10px; }
+  .ghostTap { position:absolute; width:34px; height:34px; border-radius:50%; background:rgba(233,160,32,.35); border:2px solid var(--marigold); z-index:7; }
+
+  /* settings */
+  .card { background:#fff; border:2px solid var(--ink); border-radius:16px; padding:13px; }
+  .card h4 { font-family:Fraunces, serif; font-weight:800; font-size:16px; }
+  .card p { font-size:12px; color:var(--muted); margin-top:2px; line-height:1.4; }
+  .lang { display:flex; align-items:center; gap:10px; padding:10px 4px; border-top:1.5px solid #EEE7DA; }
+  .lang:first-of-type { border-top:none; }
+  .lang .flag { font-size:20px; }
+  .lang .n { font-weight:800; font-size:15px; }
+  .lang .d { font-size:11.5px; color:var(--muted); }
+  .radio { margin-left:auto; width:22px; height:22px; border-radius:50%; border:2px solid var(--ink); display:flex; align-items:center; justify-content:center; }
+  .radio.on::after { content:""; width:11px; height:11px; border-radius:50%; background:var(--cactus); }
+  .switch { width:44px; height:26px; border-radius:13px; background:var(--cactus); position:relative; margin-left:auto; }
+  .switch::after { content:""; position:absolute; right:3px; top:3px; width:20px; height:20px; border-radius:50%; background:#fff; }
+  .switch.off { background:var(--muted); } .switch.off::after { right:auto; left:3px; }
+  .btn { position:relative; }
+  .btn .face { position:relative; z-index:1; height:50px; border:2px solid var(--ink); border-radius:14px; display:flex; align-items:center; justify-content:center; font-family:Fraunces, serif; font-weight:800; font-size:18px; background:#fff; }
+  .btn::after { content:""; position:absolute; left:0; right:0; top:4px; bottom:-4px; border-radius:14px; background:var(--ink); }
+  .btn.green .face { background:var(--cactus); color:#fff; }
+
+  .timeline { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; margin:0 0 6px; }
+  .timeline span { background:#fff; border:1.5px solid var(--ink); border-radius:99px; padding:3px 10px; font-weight:800; }
+  .timeline em { font-style:normal; color:var(--muted); }
+  .q { background:#FFF4DC; border:2px solid var(--marigold); border-radius:12px; padding:10px 12px; font-size:13px; line-height:1.45; margin-top:8px; }
+</style>
+</head>
+<body>
+
+<h1>Pepe Habla: game flow and app language</h1>
+<p class="intro">Mocked in <b>Swedish</b> so you can see the translated glosses. Buttons never move: every piece of feedback is a toast that drops in from the top. Dashed boxes under each phone describe what you hear. Nothing here changes the scheduling except point 6: a word only counts as right if the first tap was right.</p>
+
+<h2>A. A question, from start to finish (Swedish → Spanish)</h2>
+<div class="timeline"><span>question appears</span><em>→</em><span>🔊 “boken” (Swedish voice)</span><em>→</em><span>speaker icon fades in</span><em>→</em><span>tap “el pan”: 🔊 “el pan” → ✕ sound</span><em>→</em><span>“Försök igen!” for 2 s</span><em>→</em><span>tap “el libro”: 🔊 “el libro” → ✓ sound</span><em>→</em><span>3 s, or tap anywhere</span><em>→</em><span>next</span></div>
+<p class="rowNote">The sound bars and the speaker icon share one fixed slot to the right of the word, so the word never shifts. The word and the icon are one tap target: tapping either one restarts the audio from the beginning.</p>
+
+<div class="row">
+
+  <!-- 1 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:30%"></i></div><div class="count">4 / 10</div></div>
+      <div class="body">
+        <div class="task">HUR SÄGER MAN?</div>
+        <div class="prompt">
+          <div class="word"><span class="w">boken</span><span class="slot"><span class="wave"><i></i><i></i><i></i></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt"><div class="face">la mesa</div></div>
+          <div class="opt"><div class="face">el pan</div></div>
+          <div class="opt"><div class="face">el libro</div></div>
+          <div class="opt"><div class="face">la silla</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">1</span>Question appears</div>
+    <p class="sub">The word plays automatically, once. Small marigold sound bars pulse beside it while it plays. You can answer straight away without waiting for it to finish.</p>
+    <div class="audio">🔊 <b>“boken”</b>: Swedish voice, because the prompt is in Swedish</div>
+  </div>
+
+  <!-- 2 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:30%"></i></div><div class="count">4 / 10</div></div>
+      <div class="body">
+        <div class="task">HUR SÄGER MAN?</div>
+        <div class="prompt">
+          <div class="word"><div class="tapRing"></div><span class="w">boken</span><span class="slot"><span class="spk"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="#6B6259"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="#6B6259" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt"><div class="face">la mesa</div></div>
+          <div class="opt"><div class="face">el pan</div></div>
+          <div class="opt"><div class="face">el libro</div></div>
+          <div class="opt"><div class="face">la silla</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">2</span>Finished playing</div>
+    <p class="sub">The bars become a small outlined speaker in the muted colour. It's there to show that tapping replays, without drawing attention. The dashed outline marks the tap area and isn't drawn in the app.</p>
+    <div class="audio">Tap the word or the icon → 🔊 <b>“boken”</b> again, from the start</div>
+  </div>
+
+  <!-- 3 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="slide">↓ SLIDES IN FROM THE TOP</div>
+      <div class="toast bad"><img src="../../../../apps/app/assets/pepe/pepe-sad.png" alt=""><div><div class="t1">Försök igen!</div></div></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:30%"></i></div><div class="count">4 / 10</div></div>
+      <div class="body">
+        <div class="task">HUR SÄGER MAN?</div>
+        <div class="prompt">
+          <div class="word"><span class="w">boken</span><span class="slot"><span class="spk"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="#6B6259"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="#6B6259" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt"><div class="face">la mesa</div></div>
+          <div class="opt wrong lock"><div class="face"><span>el pan<span class="gloss">= brödet</span></span><span>✕</span></div></div>
+          <div class="opt"><div class="face">el libro</div></div>
+          <div class="opt"><div class="face">la silla</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">3</span>Wrong tap</div>
+    <p class="sub">The button turns red, and the toast with Pepe and the skull drops over the progress bar. Nothing below it moves. The red button also shows what the word means (“= brödet”); that's my suggestion, since the old bottom sheet explained it and the short toast no longer does.</p>
+    <div class="audio">🔊 <b>“el pan”</b> → ✕ sound + haptic. Recorded as <b>wrong</b> for this word.</div>
+  </div>
+
+  <!-- 4 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:30%"></i></div><div class="count">4 / 10</div></div>
+      <div class="body">
+        <div class="task">HUR SÄGER MAN?</div>
+        <div class="prompt">
+          <div class="word"><span class="w">boken</span><span class="slot"><span class="spk"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="#6B6259"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="#6B6259" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt"><div class="face">la mesa</div></div>
+          <div class="opt wrong lock"><div class="face"><span>el pan<span class="gloss">= brödet</span></span><span>✕</span></div></div>
+          <div class="opt"><div class="face">el libro</div></div>
+          <div class="opt"><div class="face">la silla</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">4</span>Two seconds later</div>
+    <p class="sub">The toast slides back up. “el pan” stays red and locked so you can't tap it twice. Another wrong tap sends the toast down again. Tapping it while it's showing restarts the 2 seconds.</p>
+    <div class="audio">Tapping another option interrupts any audio still playing</div>
+  </div>
+
+  <!-- 5 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="toast good"><img src="../../../../apps/app/assets/pepe/pepe-happy.png" alt=""><div><div class="t1">Helt rätt!</div><div class="t2">el libro = boken</div></div><div class="timer"><i></i></div></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:30%"></i></div><div class="count">4 / 10</div></div>
+      <div class="body">
+        <div class="task">HUR SÄGER MAN?</div>
+        <div class="prompt">
+          <div class="word"><span class="w">boken</span><span class="slot"><span class="spk"><svg viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9z" fill="#6B6259"/><path d="M16.5 8.5a5 5 0 0 1 0 7" stroke="#6B6259" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt dim"><div class="face">la mesa</div></div>
+          <div class="opt wrong dim"><div class="face"><span>el pan<span class="gloss">= brödet</span></span><span>✕</span></div></div>
+          <div class="opt right"><div class="face"><span>el libro</span><span>✓</span></div></div>
+          <div class="opt dim"><div class="face">la silla</div></div>
+        </div>
+        <div class="tapAnywhere">Tryck var som helst för att fortsätta</div>
+      </div>
+      <div class="ghostTap" style="left:60px; top:230px"></div>
+    </div>
+    <div class="cap"><span class="capNum">5</span>Correct tap</div>
+    <p class="sub">A green toast shows the pair you just learned, with a thin countdown bar. It moves on automatically after 3 seconds, or when you tap anywhere. The hint takes space that's already empty, so nothing shifts.</p>
+    <div class="audio">🔊 <b>“el libro”</b> → ✓ sound. The 3 s start <b>after</b> the ✓ sound. It stays <b>wrong</b> in the stats because the first tap was wrong.</div>
+  </div>
+
+</div>
+
+<h2>B. The other question types, and the rest of the app</h2>
+<p class="rowNote">Listening-only questions are gone; their 20% share goes to the two text directions. Only glosses are translated. The Spanish side is always Spanish and always spoken with the Mexican voice.</p>
+
+<div class="row">
+
+  <!-- 6 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:50%"></i></div><div class="count">6 / 10</div></div>
+      <div class="body">
+        <div class="task">VÄLJ ÖVERSÄTTNINGEN</div>
+        <div class="prompt">
+          <div class="word"><span class="w">el libro</span><span class="slot"><span class="wave"><i></i><i></i><i></i></span></span></div>
+        </div>
+        <div class="opts">
+          <div class="opt"><div class="face">bordet</div></div>
+          <div class="opt"><div class="face">boken</div></div>
+          <div class="opt"><div class="face">stolen</div></div>
+          <div class="opt"><div class="face">brödet</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">6</span>Spanish → Swedish</div>
+    <p class="sub">Same layout, the other way round. The prompt is spoken in Spanish, and tapping an option speaks it in Swedish.</p>
+    <div class="audio">🔊 <b>“el libro”</b> (es-MX) · tap “boken” → 🔊 <b>“boken”</b> (sv-SE) → ✓</div>
+  </div>
+
+  <!-- 7 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div class="top"><div class="x">✕</div><div class="bar"><i style="width:70%"></i></div><div class="count">8 / 10</div></div>
+      <div class="body">
+        <div class="task">VAD ÄR DETTA?</div>
+        <div class="prompt" style="gap:10px">
+          <div style="background:#fff; border:2px solid var(--ink); border-radius:20px; padding:8px 18px;"><img src="../../../../apps/app/assets/pepe/vocab-el-taco.png" alt="" style="width:170px; height:170px; object-fit:contain; display:block"></div>
+                  </div>
+        <div class="opts">
+          <div class="opt"><div class="face">el pollo</div></div>
+          <div class="opt"><div class="face">el taco</div></div>
+          <div class="opt"><div class="face">el pan</div></div>
+          <div class="opt"><div class="face">el huevo</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">7</span>Picture question</div>
+    <p class="sub">Picture only, no word, so it stays a real “what is this?” question. There's nothing to play when it appears. Only 4 words have pictures, so this is rare.</p>
+    <div class="audio">Silent on arrival · tap “el taco” → 🔊 <b>“el taco”</b> (es-MX) → ✓, and the toast shows “el taco = tacon”</div>
+  </div>
+
+  <!-- 8 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div style="flex:1; padding:14px 16px; display:flex; flex-direction:column; gap:11px">
+        <div style="font-family:Fraunces,serif; font-weight:900; font-size:28px">Inställningar</div>
+        <div class="card">
+          <h4>Språk</h4>
+          <p>Appens språk och översättningarna i frågorna.</p>
+          <div style="margin-top:6px">
+            <div class="lang"><span class="flag">🇸🇪</span><div><div class="n">Svenska</div><div class="d">Frågor på svenska</div></div><span class="radio on"></span></div>
+            <div class="lang"><span class="flag">🇬🇧</span><div><div class="n">English</div><div class="d">Questions in English</div></div><span class="radio"></span></div>
+            <div class="lang"><span class="flag">🇲🇽</span><div><div class="n">Español</div><div class="d">Todo en español · preguntas en inglés</div></div><span class="radio"></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div style="display:flex; align-items:center; gap:10px"><div><h4>Ljud</h4><p>Rösten, ljudeffekter och vibration.</p></div><span class="switch"></span></div>
+          <div style="display:flex; align-items:center; gap:10px; margin-top:10px; padding-top:10px; border-top:1.5px solid #EEE7DA"><div><div class="n" style="font-weight:800; font-size:14px">Ljudeffekter och vibration</div><p>Pling när det är rätt, surr när det är fel. Rösten hörs alltid.</p></div><span class="switch off"></span></div>
+        </div>
+        <div style="flex:1; display:flex; align-items:center; justify-content:center"><img style="width:80px" src="../../../../apps/app/assets/pepe/pepe-idle.png" alt="" style="width:110px"></div>
+        <div class="btn"><div class="face">Tillbaka</div></div>
+        <div style="height:8px"></div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">8</span>Settings: language</div>
+    <p class="sub">Added to the settings screen phase 2 is building. Each language is labelled in its own language, so you can always find your way back. Changing it applies immediately. It doesn't touch progress, which is stored per word.<br><br><b>New:</b> an effects switch under Sound, shown off here. Off means no ✓/✕ sounds, no haptics and no chimes, but the voice still reads every word and every option you tap. The red and green toasts stay. The effects switch is only shown while Sound is on.</p>
+  </div>
+
+  <!-- 9 -->
+  <div class="cell">
+    <div class="phone">
+      <div class="status"></div>
+      <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:0 18px">
+        <img src="../../../../apps/app/assets/pepe/pepe-happy.png" alt="" style="width:120px">
+        <div style="font-family:Fraunces,serif; font-weight:900; font-size:28px; margin-top:6px">Bra jobbat!</div>
+        <div style="color:var(--muted); font-size:14px">7 av 10 rätt på första försöket</div>
+        <div class="card" style="width:100%; margin-top:18px">
+          <div style="font-weight:800; font-size:11px; letter-spacing:1px; color:var(--muted); margin-bottom:7px">ATT REPETERA</div>
+          <div style="display:flex; gap:8px; align-items:baseline; margin-bottom:3px"><span style="font-family:Fraunces,serif; font-weight:800; font-size:17px">el libro</span><span style="color:var(--muted); font-size:13px">boken</span></div>
+          <div style="display:flex; gap:8px; align-items:baseline; margin-bottom:3px"><span style="font-family:Fraunces,serif; font-weight:800; font-size:17px">la cita</span><span style="color:var(--muted); font-size:13px">mötet, dejten</span></div>
+          <div style="display:flex; gap:8px; align-items:baseline"><span style="font-family:Fraunces,serif; font-weight:800; font-size:17px">soler</span><span style="color:var(--muted); font-size:13px">brukar</span></div>
+          <div style="color:var(--muted); font-size:12px; margin-top:5px">De kommer tillbaka i morgon.</div>
+        </div>
+        <div class="btn green" style="width:100%; margin-top:18px"><div class="face">En runda till?</div></div>
+        <div style="color:var(--muted); font-weight:800; font-size:14px; margin-top:14px">Klart för idag</div>
+      </div>
+    </div>
+    <div class="cap"><span class="capNum">9</span>Summary</div>
+    <p class="sub">The score counts <b>first taps</b> only. A word you got right after “Försök igen” appears in “Att repetera”, just as a wrong answer does today.</p>
+  </div>
+
+</div>
+
+</body>
+</html>
