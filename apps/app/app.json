@@ -12,24 +12,16 @@
         "light": "./assets/icon.png",
         "dark": "./assets/icon-dark.png",
         "tinted": "./assets/icon-tinted.png"
-      },
-      "bundleIdentifier": "com.daniel.letseat.mx.pepe-habla"
+      }
     },
     "android": {
-      "package": "com.andidev.pepehabla",
       "adaptiveIcon": {
         "backgroundColor": "#FBF6EC",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false,
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.FOREGROUND_SERVICE",
-        "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"
-      ]
+      "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
