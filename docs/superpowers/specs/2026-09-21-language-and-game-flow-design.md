@@ -79,15 +79,15 @@ checks: every word has a non-empty `sv`, and no two words share a gloss in the
 same language. The second matters because a shared gloss would make two
 options identical.
 
-**Interface strings.** One file, `apps/app/strings.ts`, holding a
+**Interface strings.** One file, `apps/app/i18n/strings.ts`, holding a
 `Record<AppLanguage, Strings>`. `Strings` is an interface, so a key missing
 from one language is a type error. Strings that vary with a number are
 functions (`roundScore: (right, total) => string`). There is no i18n library.
 Three languages and about 60 strings do not justify one. Screens read strings
-through a `useStrings()` hook backed by a small context, so changing the
-language re-renders every screen at once.
+through a `useLanguage()` hook (`apps/app/i18n/language.tsx`) backed by a
+small context, so changing the language re-renders every screen at once.
 
-Every screen with copy moves its text to `strings.ts`: home/Welcome, the
+Every screen with copy moves its text to `i18n/strings.ts`: home/Welcome, the
 session, the summary, stats, words, settings and the tab bar. The word list
 and stats show glosses in the gloss language.
 
@@ -268,7 +268,7 @@ ships usable on its own:
 
 1. **Answer loop** — reducer, `say()` sequencing, toasts, spoken options,
    removing listening questions, effects switch. Needs no content.
-2. **Languages** — `sv` on `Word` and greetings, validator, `strings.ts` and
+2. **Languages** — `sv` on `Word` and greetings, validator, `i18n/strings.ts` and
    every screen's copy, the language setting and first-launch default.
 3. **Swedish content** — Claude's draft of 384 glosses and the greetings, then
    Anders's review. Can run alongside part 2.

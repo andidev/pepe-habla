@@ -54,12 +54,14 @@ export default function Stats() {
     return () => { alive = false; };
   }, []));
 
-  if (summary === null) return <Screen><View style={{ flex: 1 }} /></Screen>;
+  // The tab's native header (for the settings gear) already clears the
+  // status bar, so Screen must not reserve the top edge again.
+  if (summary === null) return <Screen edges={[]}><View style={{ flex: 1 }} /></Screen>;
 
   const nothingYet = summary.practised === 0;
 
   return (
-    <Screen>
+    <Screen edges={[]}>
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: 0, gap: space.md, paddingBottom: space.xxl }}
         showsVerticalScrollIndicator={false}

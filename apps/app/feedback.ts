@@ -76,7 +76,10 @@ let muted = false;
 let effects = true;
 
 export function cue(name: CueName): void {
-  if (!effects) return;                  // the effects switch silences touch too
+  // Spec §2's table: the effects switch only silences touch while there is
+  // sound to silence it from. With Sound off, effects is hidden and haptics
+  // must still fire, so effects alone must not skip the haptic below.
+  if (!effects && !muted) return;
   attempt(HAPTIC[name]);                 // haptics ignore the mute switch
   if (muted) return;
   const player = players[name];

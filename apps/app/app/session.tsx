@@ -72,6 +72,13 @@ export default function Session() {
   // interrupted and must not play its cue or start its countdown.
   const seq = useRef(0);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  // `answering`/`state.tried` are only current as of the last render, so two
+  // taps landing in the same frame (e.g. right then wrong, or the same wrong
+  // option twice) would both pass the render-time guard in onAnswer. These
+  // refs are updated synchronously inside onAnswer itself, so the second tap
+  // sees the first tap's effect immediately.
+  const settled = useRef(false);           // true once the right option lands for this question
+  const triedThisFrame = useRef<Set<string>>(new Set());
 
   const clearTimers = useCallback(() => {
     for (const id of timers.current) clearTimeout(id);
@@ -119,6 +126,9 @@ export default function Session() {
   // not replay the prompt.
   useEffect(() => {
     shownAt.current = Date.now();
+    // A fresh question: neither ref's guard should carry over from the last one.
+    settled.current = false;
+    triedThisFrame.current = new Set();
     if (!question || !answering) return;
     setToast(null);
     playPrompt(question);
@@ -180,6 +190,8 @@ export default function Session() {
     seq.current += 1;
     stopSpeaking();
     setToast(null);
+    settled.current = false;
+    triedThisFrame.current = new Set();
     setState((s) => (s ? reduce(s, { type: 'next' }) : s));
   }, [clearTimers]);
 
@@ -256,11 +268,18 @@ export default function Session() {
 
   const onAnswer = (option: string) => {
     if (!answering || state.tried.includes(option)) return;
+    // `answering`/`state.tried` above are only as fresh as the last render,
+    // so two taps in the same frame (right then wrong, or the same wrong
+    // option twice) both pass that check. These refs are set synchronously
+    // below, so the second tap in the pair sees the first tap's effect.
+    if (settled.current || triedThisFrame.current.has(option)) return;
     const id = ++seq.current;
     clearTimers();
     setPlaying(false);
 
     const hit = option === question.answer;
+    if (hit) settled.current = true;
+    else triedThisFrame.current.add(option);
     const ms = Date.now() - shownAt.current;
     // Functional, so a second tap before a re-render reduces from the state the
     // first tap left, not a stale copy with nothing tried.

@@ -3,6 +3,7 @@ import { Text, View } from 'react-native';
 import Animated, {
   Easing, SlideInUp, SlideOutUp, useAnimatedStyle, useSharedValue, withTiming,
 } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colour, font, outline, radius, space } from '../theme';
 import { Pepe } from './Pepe';
 import { PressableCard } from './PressableCard';
@@ -24,6 +25,10 @@ export function FeedbackToast({ kind, title, subtitle, countdownMs }: {
 }) {
   const good = kind === 'good';
   const left = useSharedValue(1);
+  // `Screen` only reserves the safe area for its own children, so a value
+  // measured from `space.sm` alone lands under the status bar / notch; add
+  // the inset back in.
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (countdownMs !== undefined) {
@@ -39,7 +44,7 @@ export function FeedbackToast({ kind, title, subtitle, countdownMs }: {
       exiting={SlideOutUp.duration(200)}
       accessibilityLiveRegion="polite"
       accessibilityRole="alert"
-      style={{ position: 'absolute', top: space.sm, left: space.md, right: space.md, zIndex: 20 }}
+      style={{ position: 'absolute', top: insets.top + space.sm, left: space.md, right: space.md, zIndex: 20 }}
     >
       <PressableCard face={good ? colour.cactus : colour.chile} depth={4}>
         <View style={{
