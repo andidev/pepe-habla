@@ -1,0 +1,16 @@
+{
+  "poses": {
+    "idle": "pepe-idle.png",
+    "happy": "pepe-happy.png",
+    "sad": "pepe-sad.png",
+    "excited": "pepe-excited.png",
+    "sleeping": "pepe-sleeping.png",
+    "hero": "pepe-hero.png"
+  },
+  "vocab": {
+    "el-taco": "vocab-el-taco.png",
+    "la-guitarra": "vocab-la-guitarra.png",
+    "cocinar": "vocab-cocinar.png",
+    "el-sombrero": "vocab-el-sombrero.png"
+  }
+}

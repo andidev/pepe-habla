@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "A Spanish vocabulary trainer with Leitner scheduling. Core logic is platform-agnostic.",
+  "workspaces": ["packages/*", "apps/app"],
+  "description": "A Spanish vocabulary trainer. Core logic is platform-agnostic.",
   "scripts": {
-    "test": "node --test 'src/**/*.test.ts'",
-    "typecheck": "tsc --noEmit",
-    "practice": "node src/cli.ts"
+    "test": "node --test 'packages/core/src/**/*.test.ts' 'tools/**/*.test.ts'",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p apps/app",
+    "practice": "node tools/cli.ts",
+    "sprites": "python3 tools/extract_sprites.py",
+    "sounds": "python3 tools/make_sounds.py apps/app/assets/audio/",
+    "speech": "python3 tools/make_speech.py"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

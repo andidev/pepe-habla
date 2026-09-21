@@ -11,7 +11,9 @@
     "noEmit": true,
     "strict": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": { "@pepe/core": ["packages/core/src/index.ts"] }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["packages/core/src/**/*.ts", "tools/**/*.ts"]
 }
