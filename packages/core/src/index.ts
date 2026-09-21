@@ -3,7 +3,7 @@ export * from './types.ts';
 export * from './language.ts';
 export * from './dates.ts';
 export * from './rng.ts';
-export * from './leitner.ts';
+export * from './progress.ts';
 export * from './sm2.ts';
 export * from './migrate.ts';
 export * from './select.ts';

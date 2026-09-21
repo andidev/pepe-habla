@@ -2,9 +2,6 @@
  * Shared data shapes. Pure types only — no runtime code, no I/O.
  */
 
-/** Leitner box. 1 = shaky, 5 = solid. */
-export type Box = 1 | 2 | 3 | 4 | 5;
-
 export type PartOfSpeech =
   | 'noun'
   | 'verb'
@@ -34,8 +31,14 @@ export interface Word {
 
 /** What we know about how well a word is known. This is the part that changes. */
 export interface Progress {
+  /** Stable slug, the same one as the word's. */
   id: string;
-  box: Box;
+  /** Consecutive correct first taps. Back to zero after a miss. */
+  reps: number;
+  /** SM-2 ease factor, 1.3 to 3.0: how fast the interval grows. */
+  ease: number;
+  /** Days from the last answer to the next due date. 0 until first answered. */
+  interval: number;
   seen: number;
   right: number;
   wrong: number;

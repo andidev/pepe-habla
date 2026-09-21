@@ -7,9 +7,9 @@
  *
  * All the interesting logic lives in @pepe/core. This file is just plumbing.
  */
-import { buildQuestions, selectDaily, applyAnswer, freshProgress, isDue, INTERVALS,
+import { buildQuestions, selectDaily, applyAnswer, freshProgress, isDue, INITIAL_EASE,
          mulberry32, seedFromDate, todayISO } from '@pepe/core';
-import type { Box, Progress } from '@pepe/core';
+import type { Progress } from '@pepe/core';
 import { fileStore, projectRoot } from './store/fileStore.ts';
 
 const DAILY_COUNT = 10;
@@ -42,11 +42,11 @@ async function answer(pairs: string[]): Promise<void> {
 
     const correct = flag === '1';
     const before: Progress = db.progress[id] ?? freshProgress(id, today);
-    const after = applyAnswer(before, correct, today);
+    const after = applyAnswer(before, { correct, direction: null }, today);
     db.progress[id] = after;
 
     rows.push(
-      `| ${word.es} | ${word.en} | ${correct ? '✅' : '❌'} | ${before.box} → ${after.box} | ${after.dueOn} |`,
+      `| ${word.es} | ${word.en} | ${correct ? '✅' : '❌'} | ${before.reps} → ${after.reps} | ${after.interval}d | ${after.dueOn} |`,
     );
   }
 
@@ -56,8 +56,8 @@ async function answer(pairs: string[]): Promise<void> {
     [
       `## Session — ${today}`,
       '',
-      '| Spanish | English | Result | Box | Next due |',
-      '|---|---|---|---|---|',
+      '| Spanish | English | Result | Streak | Interval | Next due |',
+      '|---|---|---|---|---|---|',
       ...rows,
       '',
       '',
@@ -73,11 +73,15 @@ async function stats(): Promise<void> {
   const [words, db] = await Promise.all([store.loadWords(), store.loadProgress()]);
   const all = Object.values(db.progress);
 
-  const boxes = ([1, 2, 3, 4, 5] as Box[]).map((b) => ({
-    box: b,
-    every: `${INTERVALS[b]}d`,
-    count: all.filter((p) => p.box === b).length,
+  const buckets = [0, 1, 2, 3, 4].map((reps) => ({
+    label: `${reps} in a row`,
+    count: all.filter((p) => p.reps === reps).length,
   }));
+  buckets.push({ label: '5 or more', count: all.filter((p) => p.reps >= 5).length });
+
+  const meanEase = all.length === 0
+    ? INITIAL_EASE
+    : all.reduce((n, p) => n + p.ease, 0) / all.length;
   const seen = all.reduce((n, p) => n + p.seen, 0);
   const right = all.reduce((n, p) => n + p.right, 0);
 
@@ -86,9 +90,11 @@ async function stats(): Promise<void> {
   console.log(`Due today:   ${all.filter((p) => isDue(p, today)).length}`);
   console.log(`Accuracy:    ${seen === 0 ? '—' : `${Math.round((right / seen) * 100)}% of ${seen}`}`);
   console.log('');
-  for (const b of boxes) {
-    console.log(`  box ${b.box} (every ${b.every.padEnd(3)}) ${'█'.repeat(b.count).slice(0, 60)} ${b.count}`);
+  for (const b of buckets) {
+    console.log(`  ${b.label.padEnd(10)} ${'█'.repeat(b.count).slice(0, 60)} ${b.count}`);
   }
+  console.log('');
+  console.log(`Mean ease:   ${meanEase.toFixed(2)}`);
 }
 
 const [cmd, ...rest] = process.argv.slice(2);

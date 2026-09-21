@@ -1,11 +1,11 @@
 import type { Progress, Word } from './types.ts';
 import { daysBetween } from './dates.ts';
-import { isDue, isKnown } from './leitner.ts';
+import { isDue, isKnown } from './progress.ts';
 
-// `isKnown` lives in leitner.ts because applyAnswer has to ask the question to
+// `isKnown` lives in progress.ts because applyAnswer has to ask the question to
 // stamp `knownOn`, and the module that records answers must not import the one
 // that derives statistics. Re-exported here so screens have one import.
-export { isKnown, KNOWN_THRESHOLD } from './leitner.ts';
+export { isKnown, KNOWN_THRESHOLD } from './progress.ts';
 
 /** Days back that "this week" reaches. */
 const WEEK = 7;
@@ -88,7 +88,7 @@ export function leeches(
       word: w,
       wrong: p.wrong,
       seen: p.seen,
-      accuracy: p.seen === 0 ? 0 : Math.round((p.right / p.seen) * 100),
+      accuracy: Math.round((p.right / p.seen) * 100),
     });
   }
   return out

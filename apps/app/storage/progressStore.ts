@@ -46,7 +46,7 @@ export function recordAnswers(
   const progress = { ...db.progress };
   for (const record of records) {
     const before = progress[record.wordId] ?? freshProgress(record.wordId, today);
-    progress[record.wordId] = applyAnswer(before, record.correct, today, record.direction);
+    progress[record.wordId] = applyAnswer(before, record, today);
   }
   return { ...db, progress };
 }

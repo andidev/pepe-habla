@@ -1,11 +1,8 @@
 import type { Direction, Question, Rng, Word } from './types.ts';
-import { gloss, type GlossLanguage } from './language.ts';
+import { answersInGloss, gloss, type GlossLanguage } from './language.ts';
 import { shuffle } from './rng.ts';
 
 const OPTIONS_PER_QUESTION = 4;
-
-/** Whether the learner answers with the gloss (rather than the Spanish). */
-const answersInGloss = (d: Direction): boolean => d === 'es->en';
 
 const solve = (w: Word, d: Direction, g: GlossLanguage): string =>
   answersInGloss(d) ? gloss(w, g) : w.es;
