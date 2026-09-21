@@ -81,8 +81,9 @@ Node 24 runs the TypeScript directly, so there is no build step. The only
 dependency is TypeScript itself, for typechecking.
 
 Other npm scripts: `npm run practice` (the CLI driver above), `npm run
-sprites`, `npm run sounds`, and `npm run speech` (Python tools that build the
-app's art and audio assets).
+sprites` and `npm run sounds` (Python tools that build the app's art and audio
+assets). Words are pronounced by the device's own text-to-speech via
+`expo-speech`; no recordings are shipped.
 
 ## Adding words
 

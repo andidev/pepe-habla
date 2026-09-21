@@ -1,7 +1,6 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
-import { RECORDINGS } from './storage/speech';
 
 export type CueName = 'tap' | 'correct' | 'wrong' | 'complete' | 'streak' | 'levelup';
 
@@ -76,18 +75,16 @@ export function cue(name: CueName): void {
 /**
  * Pronunciation, best source first.
  *
- * 1. A bundled recording — identical on every device, offline.
- * 2. Device speech with an explicitly chosen Mexican voice.
- * 3. The nearest Spanish voice the device has.
- * 4. Silence.
+ * 1. Device speech with an explicitly chosen Mexican voice.
+ * 2. The nearest Spanish voice the device has.
+ * 3. Silence.
  *
- * Step 4 is deliberate: a device with no Spanish voice will happily read
+ * Step 3 is deliberate: a device with no Spanish voice will happily read
  * Spanish with an English mouth, and teaching a wrong pronunciation is worse
  * than teaching none.
  */
 let spanishVoice: string | null = null;
 let voicesChecked = false;
-let wordPlayer: AudioPlayer | null = null;
 
 function rankVoice(v: { language: string; identifier: string }): number {
   const lang = v.language.toLowerCase().replace('_', '-');
@@ -118,34 +115,19 @@ export function prepareSpeech(): Promise<void> {
   return speechReady;
 }
 
-/** False when this device can neither play a recording nor speak Spanish. */
-export function canSpeak(word: { id: string }): boolean {
-  if (RECORDINGS[word.id] !== undefined) return true;
+/** False when this device has no Spanish voice to speak with. */
+export function canSpeak(): boolean {
   return voicesChecked && spanishVoice !== null;
 }
 
-export function speak(word: { id: string; es: string }): void {
+export function speak(word: { es: string }): void {
   if (muted) return;
 
-  const recording = RECORDINGS[word.id];
-  if (recording !== undefined) {
-    attempt(() => {
-      if (wordPlayer === null) {
-        wordPlayer = createAudioPlayer(recording);
-      } else {
-        wordPlayer.replace(recording);      // one player for all 384 words
-      }
-      return wordPlayer.seekTo(0).then(() => wordPlayer?.play());
-    });
-    return;
-  }
-
-  // No recording. Wait for the voice check before speaking — speaking with
-  // whatever voice the device happens to default to is the bug this whole
-  // task exists to fix.
+  // Wait for the voice check before speaking — speaking with whatever voice
+  // the device happens to default to is the bug this whole order exists to fix.
   attempt(() => (speechReady ?? Promise.resolve()).then(() => {
     const voice = spanishVoice;
-    if (voice === null) return;                     // step 4: silence
+    if (voice === null) return;                     // step 3: silence
     return Speech.stop().then(() => Speech.speak(word.es, {
       language: 'es-MX',
       rate: 0.95,
