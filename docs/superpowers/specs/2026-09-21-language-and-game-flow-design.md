@@ -274,3 +274,15 @@ ships usable on its own:
    Anders's review. Can run alongside part 2.
 
 The phase 2 plan's rule "Interface copy in Spanish" is superseded by part 2.
+
+## 8. Deferred review findings
+
+Minor findings from the per-task reviews, left for later:
+
+- `answersInGloss` (quiz.ts) and `answersInEnglish` (leitner.ts) are the same predicate in two files.
+- The "no listening-only questions" test partly restates the `Direction` type.
+- Swedish glosses worth a native look: `romper` ("att ha sönder"), `gustar` ("att tycka om" loses the backwards construction), and two greetings share "Nu kör vi!".
+- Replaying the prompt while a wrong option is being spoken skips that tap's buzz (any new tap stops what is speaking).
+- The toast id is `Date.now()` rather than the tap sequence number.
+- While a right answer is showing, the tap-anywhere layer also covers the X, so X advances instead of leaving.
+- A very fast double tap on the same wrong option can speak it twice (the stats are unaffected).

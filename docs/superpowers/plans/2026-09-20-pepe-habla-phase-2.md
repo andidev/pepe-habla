@@ -1066,6 +1066,8 @@ inventing the data behind them."
 
 ### Task 6: Settings, and the mute toggle that had nowhere to live
 
+> **Folded into `2026-09-21-language-and-game-flow.md` (Tasks 4 and 8).** This task was never committed on `phase-2`; its settings screen was rebuilt there with language and effects.
+
 `feedback.ts` has exported `setMuted` and `isMuted` since phase 1 with nothing calling them. This is the screen they were waiting for.
 
 **Files:**

@@ -1,7 +1,7 @@
 # Pepe Habla
 
 A Spanish vocabulary trainer, named after Pepe, a street dog from Mexico who
-is the app's mascot. Mexican Spanish, English glosses, Leitner scheduling.
+is the app's mascot. Mexican Spanish, English or Swedish glosses, Leitner scheduling.
 
 ## Practising
 
@@ -20,6 +20,16 @@ By hand, from the command line:
 npm run practice -- pick    # today's ten, as JSON questions
 npm run practice -- stats   # where you stand
 ```
+
+## Languages
+
+Settings → Language offers Svenska, English and Español. The choice sets the
+interface language and the language of the glosses: Swedish glosses in
+Swedish, English glosses in English and in Spanish (where the interface itself
+is the immersion). Spanish words are always Spanish. On first launch the app
+follows the phone's language.
+
+The `/practice` command and the CLI stay in English.
 
 ## How the scheduling works
 
@@ -55,6 +65,7 @@ packages/core/src/  pure logic — no I/O, no node:/react/react-native imports
   session.ts        the practice-round reducer
   streak.ts         the daily streak
   rng.ts            seeded randomness (injected, never called internally)
+  language.ts       app and gloss languages
 tools/store/
   store.ts          the VocabStore interface
   fileStore.ts      the Node adapter
