@@ -9,7 +9,7 @@ import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Welcome } from '../components/Welcome';
-import { prepareAudio, prepareSpeech } from '../feedback';
+import { loadSoundSettings, prepareAudio, prepareSpeech } from '../feedback';
 import { colour } from '../theme';
 
 // Both must run in the global scope, before the first render.
@@ -36,7 +36,7 @@ export default function RootLayout() {
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => { void prepareAudio(); void prepareSpeech(); }, []);
+  useEffect(() => { void prepareAudio(); void prepareSpeech(); void loadSoundSettings(); }, []);
 
   // A font that fails to load must not strand us on the splash forever; the
   // fallback face is a far better outcome than a screen that never advances.
