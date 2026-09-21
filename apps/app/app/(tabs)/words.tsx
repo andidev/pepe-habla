@@ -2,28 +2,24 @@ import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { isDue, isKnown, todayISO, type Progress, type Word } from '@pepe/core';
+import { gloss, isDue, isKnown, todayISO, type Progress, type Word } from '@pepe/core';
 import { Meter } from '../../components/Meter';
 import { Screen } from '../../components/Screen';
 import { canSpeak, cue, speak } from '../../feedback';
+import { useLanguage } from '../../i18n/language';
 import { loadProgress } from '../../storage/progressStore';
 import { WORDS } from '../../storage/vocabulary';
 import { colour, font, outline, radius, space } from '../../theme';
 
-type Filter = 'todas' | 'repasar' | 'conocidas' | 'fallas';
-
-const FILTERS: { key: Filter; label: string }[] = [
-  { key: 'todas', label: 'Todas' },
-  { key: 'repasar', label: 'Por repasar' },
-  { key: 'conocidas', label: 'Conocidas' },
-  { key: 'fallas', label: 'Se te atragantan' },
-];
+type Filter = 'all' | 'due' | 'known' | 'tricky';
+const FILTER_KEYS: Filter[] = ['all', 'due', 'known', 'tricky'];
 
 interface Row { word: Word; p: Progress }
 
 export default function Words() {
+  const { t, gloss: g } = useLanguage();
   const [progress, setProgress] = useState<Record<string, Progress>>({});
-  const [filter, setFilter] = useState<Filter>('todas');
+  const [filter, setFilter] = useState<Filter>('all');
 
   useFocusEffect(useCallback(() => {
     let alive = true;
@@ -41,9 +37,9 @@ export default function Words() {
       if (p !== undefined) all.push({ word, p });
     }
     const keep = (r: Row) => {
-      if (filter === 'repasar') return isDue(r.p, today);
-      if (filter === 'conocidas') return isKnown(r.p);
-      if (filter === 'fallas') return r.p.wrong > 0 && !isKnown(r.p);
+      if (filter === 'due') return isDue(r.p, today);
+      if (filter === 'known') return isKnown(r.p);
+      if (filter === 'tricky') return r.p.wrong > 0 && !isKnown(r.p);
       return true;
     };
     return all
@@ -57,14 +53,15 @@ export default function Words() {
     <Screen>
       <View style={{ paddingHorizontal: space.xl, paddingTop: space.lg }}>
         <Text style={{ fontFamily: font.displayHeavy, fontSize: 32, color: colour.ink }}>
-          Palabras
+          {t.words.title}
         </Text>
         <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted }}>
-          {practised} practicadas de {WORDS.length}
+          {t.words.practisedOf(practised, WORDS.length)}
         </Text>
 
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: space.md }}>
-          {FILTERS.map(({ key, label }) => {
+          {FILTER_KEYS.map((key) => {
+            const label = t.words.filter[key];
             const on = key === filter;
             return (
               <Pressable
@@ -97,9 +94,7 @@ export default function Words() {
         contentContainerStyle={{ padding: space.xl, paddingTop: space.md, gap: 9 }}
         ListEmptyComponent={
           <Text style={{ fontFamily: font.body, fontSize: 14, color: colour.muted }}>
-            {practised === 0
-              ? 'Todavía no has practicado ninguna palabra.'
-              : 'Nada aquí por ahora.'}
+            {practised === 0 ? t.words.emptyNone : t.words.emptyFilter}
           </Text>
         }
         renderItem={({ item }) => {
@@ -119,7 +114,7 @@ export default function Words() {
                     {item.word.es}
                   </Text>
                   <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, flexShrink: 1 }}>
-                    {item.word.en}
+                    {gloss(item.word, g)}
                   </Text>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 }}>
@@ -135,7 +130,7 @@ export default function Words() {
                 onPress={() => speak(item.word)}
                 disabled={!speakable}
                 accessibilityRole="button"
-                accessibilityLabel={`Escuchar ${item.word.es}`}
+                accessibilityLabel={t.words.listen(item.word.es)}
                 style={{
                   width: 44, height: 44, alignItems: 'center', justifyContent: 'center',
                   backgroundColor: colour.ground, borderRadius: radius.pill,

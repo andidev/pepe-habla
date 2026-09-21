@@ -8,6 +8,7 @@ import { Screen } from '../../components/Screen';
 import { Pepe } from '../../components/Pepe';
 import { PressableCard } from '../../components/PressableCard';
 import { cue } from '../../feedback';
+import { useLanguage } from '../../i18n/language';
 import { loadProgress } from '../../storage/progressStore';
 import { loadStreak } from '../../storage/streakStore';
 import { WORDS } from '../../storage/vocabulary';
@@ -40,6 +41,7 @@ function Stat({ value, label, tint }: { value: string; label: string; tint?: str
 
 export default function Home() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [due, setDue] = useState(0);
   const [known, setKnown] = useState(0);
   const [streak, setStreak] = useState<Streak>({ days: 0, lastDate: null });
@@ -56,9 +58,7 @@ export default function Home() {
     })();
   }, []));
 
-  const waiting = due > 0
-    ? `¡Órale! Tienes ${due} ${due === 1 ? 'palabra esperándote' : 'palabras esperándote'}.`
-    : 'Todo al día. ¿Quieres aprender palabras nuevas?';
+  const waiting = due > 0 ? t.home.waiting(due) : t.home.caughtUp;
 
   return (
     <Screen edges={['top']}>
@@ -74,7 +74,7 @@ export default function Home() {
             <Text style={{ fontFamily: font.bodyHeavy, fontSize: 15, color: colour.ink }}>{streak.days}</Text>
           </Chip>
           <Chip>
-            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 12, color: colour.muted }}>NIVEL 1</Text>
+            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 12, color: colour.muted }}>{t.home.level}</Text>
             <Text style={{ fontFamily: font.display, fontSize: 15, color: colour.chile }}>Callejero</Text>
           </Chip>
         </View>
@@ -100,6 +100,7 @@ export default function Home() {
         <PressableCard
           depth={5}
           face={colour.chile}
+          label="¡Vamos!"
           onPress={() => { cue('tap'); router.push('/session'); }}
         >
           <View style={{ height: 62, alignItems: 'center', justifyContent: 'center' }}>
@@ -108,9 +109,9 @@ export default function Home() {
         </PressableCard>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: space.lg, marginBottom: space.md }}>
-          <Stat value={String(known)} label="CONOCIDAS" />
-          <Stat value={String(due)} label="POR REPASAR" />
-          <Stat value={String(WORDS.length)} label="EN TOTAL" />
+          <Stat value={String(known)} label={t.home.known} />
+          <Stat value={String(due)} label={t.home.due} />
+          <Stat value={String(WORDS.length)} label={t.home.total} />
         </View>
       </View>
     </Screen>
