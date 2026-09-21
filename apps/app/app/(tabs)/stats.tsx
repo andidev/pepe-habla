@@ -66,10 +66,17 @@ export default function Stats() {
           Progreso
         </Text>
 
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', gap: space.md,
-          backgroundColor: colour.marigold, borderRadius: 18, padding: space.md, ...outline,
-        }}>
+        <View
+          accessible
+          accessibilityLabel={
+            streak.days === 0
+              ? 'Sin racha todavía. Empieza hoy.'
+              : `Racha de ${streak.days} ${streak.days === 1 ? 'día' : 'días'}`
+          }
+          style={{
+            flexDirection: 'row', alignItems: 'center', gap: space.md,
+            backgroundColor: colour.marigold, borderRadius: 18, padding: space.md, ...outline,
+          }}>
           <Svg width={34} height={34} viewBox="0 0 24 24">
             <Path
               d="M12 2c1 4-2 5-2 8a4 4 0 0 0 8 0c0-1-.4-2-1-3 2 2 3 4.5 3 7a8 8 0 0 1-16 0c0-4.5 3-8 8-12z"
@@ -81,7 +88,7 @@ export default function Stats() {
               {streak.days} {streak.days === 1 ? 'día' : 'días'}
             </Text>
             <Text style={{ fontFamily: font.bodyHeavy, fontSize: 13, color: colour.ink }}>
-              {streak.days === 0 ? 'Empieza hoy' : 'seguidos'}
+              {streak.days === 0 ? 'Empieza hoy' : streak.days === 1 ? 'seguido' : 'seguidos'}
             </Text>
           </View>
           <Pepe pose={streak.days > 0 ? 'happy' : 'sleeping'} motion="breathe" size={62} />
@@ -119,7 +126,9 @@ export default function Stats() {
                   </Text>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Meter value={l.accuracy} max={100} tint={colour.chile} height={11} />
+                  {/* Fill shows how often it goes wrong, so the worst word has the
+                      fullest bar — the same order as the list itself. */}
+                  <Meter value={100 - l.accuracy} max={100} tint={colour.chile} height={11} />
                 </View>
                 <Text style={{
                   width: 54, textAlign: 'right', fontFamily: font.bodyHeavy,
