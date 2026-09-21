@@ -2,6 +2,7 @@
 export * from './types.ts';
 export * from './language.ts';
 export * from './levels.ts';
+export * from './unlock.ts';
 export * from './dates.ts';
 export * from './rng.ts';
 export * from './progress.ts';
