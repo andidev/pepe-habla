@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileStore, projectRoot } from '../store/fileStore.ts';
-import { LADDERS, TRACKS, isTheme, levelsIn } from '@pepe/core';
+import { GRAMMAR_THEMES, LADDERS, THEMES, TRACKS, isTheme, levelsIn } from '@pepe/core';
 import type { Word } from '@pepe/core';
 
 // A non-literal specifier keeps apps/app out of the root tsc program (it has its
@@ -122,6 +122,25 @@ describe('the app bundles what the seed holds', () => {
     const missing = words.filter((w) => !bundled.has(w.id)).map((w) => w.id);
     assert.deepEqual(missing, [], 'in data/seed but not bundled by vocabulary.ts');
     assert.equal(WORDS.length, words.length);
+  });
+});
+
+describe('strings', () => {
+  test('every theme has a name in every language', async () => {
+    // A non-literal specifier keeps apps/app out of the root tsc program (it
+    // has its own tsconfig); tsc -p apps/app already enforces this at the
+    // type level, since Strings.theme must carry every id.
+    const stringsPath = '../../apps/app/i18n/strings.ts';
+    const { STRINGS } = (await import(stringsPath)) as {
+      STRINGS: Record<string, { theme: Record<string, string> }>;
+    };
+    const missing: string[] = [];
+    for (const [lang, s] of Object.entries(STRINGS)) {
+      for (const id of [...THEMES, ...GRAMMAR_THEMES]) {
+        if (!s.theme[id]) missing.push(`${lang}: ${id}`);
+      }
+    }
+    assert.deepEqual(missing, []);
   });
 });
 

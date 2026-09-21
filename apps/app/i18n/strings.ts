@@ -33,6 +33,7 @@ export interface Strings {
     backTomorrow: string;
     anotherRound: string;
     doneForToday: string;
+    switchTo: (track: string) => string;
   };
   stats: {
     title: string;
@@ -56,11 +57,19 @@ export interface Strings {
   words: {
     title: string;
     practisedOf: (practised: number, total: number) => string;
-    filter: { all: string; due: string; known: string; tricky: string };
+    filter: { all: string; due: string; known: string; tricky: string; track: string; theme: string };
     emptyNone: string;
     emptyFilter: string;
     listen: (es: string) => string;
   };
+  track: { words: string; grammar: string };
+  level: {
+    line: (level: number, name: string) => string;
+    desc: { words: readonly string[]; grammar: readonly string[] };
+    dominadas: (done: number, total: number) => string;
+    next: (name: string) => string;
+  };
+  theme: Record<string, string>;
   settings: {
     title: string;
     language: string;
@@ -105,6 +114,7 @@ const es: Strings = {
     backTomorrow: 'Vuelven mañana.',
     anotherRound: '¿Otra ronda?',
     doneForToday: 'Terminar por hoy',
+    switchTo: (track) => `¿Mejor ${track}?`,
   },
   stats: {
     title: 'Progreso',
@@ -128,10 +138,79 @@ const es: Strings = {
   words: {
     title: 'Palabras',
     practisedOf: (p, t) => `${p} practicadas de ${t}`,
-    filter: { all: 'Todas', due: 'Por repasar', known: 'Conocidas', tricky: 'Se te atragantan' },
+    filter: {
+      all: 'Todas',
+      due: 'Por repasar',
+      known: 'Conocidas',
+      tricky: 'Se te atragantan',
+      track: 'Pista',
+      theme: 'Tema',
+    },
     emptyNone: 'Todavía no has practicado ninguna palabra.',
     emptyFilter: 'Nada aquí por ahora.',
     listen: (w) => `Escuchar ${w}`,
+  },
+  track: { words: 'Palabras', grammar: 'Gramática' },
+  level: {
+    line: (n, name) => `NIVEL ${n} · ${name}`,
+    desc: {
+      words: [
+        'Las 200 palabras que más se oyen.',
+        'La casa, la comida, el cuerpo, la familia.',
+        'La calle: el transporte, el clima, la ciudad.',
+        'Las compras, el dinero, la cocina, la ropa.',
+        'El trabajo, la escuela, la salud.',
+        'Viajes, servicios, trámites, tecnología.',
+        'Opiniones, sentimientos, ideas.',
+        'Cómo se habla de verdad en México.',
+      ],
+      grammar: [
+        'El presente de los verbos de siempre.',
+        'El pretérito: comí, fui, hice.',
+        'El imperfecto, y cuándo usarlo.',
+        'El futuro y el condicional.',
+        'El subjuntivo y lo que lo pide.',
+        'Dichos: acabar de, volver a, tener que.',
+      ],
+    },
+    dominadas: (done, total) => `${done} de ${total} dominadas`,
+    next: (name) => `Sigue: ${name}`,
+  },
+  theme: {
+    comida: 'Comida',
+    animales: 'Animales',
+    casa: 'Casa',
+    cuerpo: 'Cuerpo',
+    ropa: 'Ropa',
+    transporte: 'Transporte',
+    trabajo: 'Trabajo',
+    dinero: 'Dinero',
+    salud: 'Salud',
+    emociones: 'Emociones',
+    tiempo: 'Tiempo',
+    naturaleza: 'Naturaleza',
+    ciudad: 'Ciudad',
+    escuela: 'Escuela',
+    tecnología: 'Tecnología',
+    deporte: 'Deporte',
+    música: 'Música',
+    familia: 'Familia',
+    cocina: 'Cocina',
+    fiesta: 'Fiesta',
+    viaje: 'Viaje',
+    gobierno: 'Gobierno',
+    negocios: 'Negocios',
+    verbos: 'Verbos',
+    conectores: 'Conectores',
+    números: 'Números',
+    saludos: 'Saludos',
+    slang: 'Slang',
+    presente: 'Presente',
+    pretérito: 'Pretérito',
+    imperfecto: 'Imperfecto',
+    futuro: 'Futuro',
+    subjuntivo: 'Subjuntivo',
+    dichos: 'Dichos',
   },
   settings: {
     title: 'Ajustes',
@@ -177,6 +256,7 @@ const sv: Strings = {
     backTomorrow: 'De kommer tillbaka i morgon.',
     anotherRound: 'En runda till?',
     doneForToday: 'Klart för idag',
+    switchTo: (track) => `Hellre ${track}?`,
   },
   stats: {
     title: 'Framsteg',
@@ -200,10 +280,79 @@ const sv: Strings = {
   words: {
     title: 'Ord',
     practisedOf: (p, t) => `${p} av ${t} övade`,
-    filter: { all: 'Alla', due: 'Att repetera', known: 'Kända', tricky: 'Svåra' },
+    filter: {
+      all: 'Alla',
+      due: 'Att repetera',
+      known: 'Kända',
+      tricky: 'Svåra',
+      track: 'Spår',
+      theme: 'Tema',
+    },
     emptyNone: 'Du har inte övat på något ord än.',
     emptyFilter: 'Inget här just nu.',
     listen: (w) => `Lyssna på ${w}`,
+  },
+  track: { words: 'Ord', grammar: 'Grammatik' },
+  level: {
+    line: (n, name) => `NIVÅ ${n} · ${name}`,
+    desc: {
+      words: [
+        'De 200 ord du hör oftast.',
+        'Hemmet, maten, kroppen, familjen.',
+        'Gatan: transport, väder, staden.',
+        'Handla, pengar, matlagning, kläder.',
+        'Jobbet, skolan, hälsan.',
+        'Resor, service, byråkrati, teknik.',
+        'Åsikter, känslor, idéer.',
+        'Så som man faktiskt pratar i Mexiko.',
+      ],
+      grammar: [
+        'Presens av verben du använder varje dag.',
+        'Preteritum: comí, fui, hice.',
+        'Imperfekt, och när man använder det.',
+        'Futurum och konditionalis.',
+        'Konjunktiv, och vad som utlöser den.',
+        'Fasta uttryck: acabar de, volver a, tener que.',
+      ],
+    },
+    dominadas: (done, total) => `${done} av ${total} behärskade`,
+    next: (name) => `Härnäst: ${name}`,
+  },
+  theme: {
+    comida: 'Mat',
+    animales: 'Djur',
+    casa: 'Hemmet',
+    cuerpo: 'Kroppen',
+    ropa: 'Kläder',
+    transporte: 'Transport',
+    trabajo: 'Jobb',
+    dinero: 'Pengar',
+    salud: 'Hälsa',
+    emociones: 'Känslor',
+    tiempo: 'Tid',
+    naturaleza: 'Natur',
+    ciudad: 'Staden',
+    escuela: 'Skolan',
+    tecnología: 'Teknik',
+    deporte: 'Sport',
+    música: 'Musik',
+    familia: 'Familjen',
+    cocina: 'Matlagning',
+    fiesta: 'Fest',
+    viaje: 'Resor',
+    gobierno: 'Myndigheter',
+    negocios: 'Affärer',
+    verbos: 'Verb',
+    conectores: 'Bindeord',
+    números: 'Siffror',
+    saludos: 'Hälsningar',
+    slang: 'Slang',
+    presente: 'Presens',
+    pretérito: 'Preteritum',
+    imperfecto: 'Imperfekt',
+    futuro: 'Futurum',
+    subjuntivo: 'Konjunktiv',
+    dichos: 'Fasta uttryck',
   },
   settings: {
     title: 'Inställningar',
@@ -249,6 +398,7 @@ const en: Strings = {
     backTomorrow: 'They come back tomorrow.',
     anotherRound: 'Another round?',
     doneForToday: 'Done for today',
+    switchTo: (track) => `Try ${track} instead?`,
   },
   stats: {
     title: 'Progress',
@@ -272,10 +422,79 @@ const en: Strings = {
   words: {
     title: 'Words',
     practisedOf: (p, t) => `${p} of ${t} practised`,
-    filter: { all: 'All', due: 'To review', known: 'Known', tricky: 'Tricky' },
+    filter: {
+      all: 'All',
+      due: 'To review',
+      known: 'Known',
+      tricky: 'Tricky',
+      track: 'Track',
+      theme: 'Theme',
+    },
     emptyNone: 'You have not practised any words yet.',
     emptyFilter: 'Nothing here for now.',
     listen: (w) => `Listen to ${w}`,
+  },
+  track: { words: 'Words', grammar: 'Grammar' },
+  level: {
+    line: (n, name) => `LEVEL ${n} · ${name}`,
+    desc: {
+      words: [
+        'The 200 words you hear most.',
+        'Home, food, the body, family.',
+        'The street: transport, weather, the city.',
+        'Shopping, money, cooking, clothes.',
+        'Work, school, health.',
+        'Travel, services, paperwork, technology.',
+        'Opinions, feelings, ideas.',
+        'How people actually talk in Mexico.',
+      ],
+      grammar: [
+        'The present tense of the everyday verbs.',
+        'The preterite: comí, fui, hice.',
+        'The imperfect, and when to use it.',
+        'The future and the conditional.',
+        'The subjunctive, and what triggers it.',
+        'Set phrases: acabar de, volver a, tener que.',
+      ],
+    },
+    dominadas: (done, total) => `${done} of ${total} mastered`,
+    next: (name) => `Next: ${name}`,
+  },
+  theme: {
+    comida: 'Food',
+    animales: 'Animals',
+    casa: 'Home',
+    cuerpo: 'Body',
+    ropa: 'Clothes',
+    transporte: 'Transport',
+    trabajo: 'Work',
+    dinero: 'Money',
+    salud: 'Health',
+    emociones: 'Feelings',
+    tiempo: 'Time',
+    naturaleza: 'Nature',
+    ciudad: 'City',
+    escuela: 'School',
+    tecnología: 'Technology',
+    deporte: 'Sport',
+    música: 'Music',
+    familia: 'Family',
+    cocina: 'Cooking',
+    fiesta: 'Parties',
+    viaje: 'Travel',
+    gobierno: 'Government',
+    negocios: 'Business',
+    verbos: 'Verbs',
+    conectores: 'Connectives',
+    números: 'Numbers',
+    saludos: 'Greetings',
+    slang: 'Slang',
+    presente: 'Present',
+    pretérito: 'Preterite',
+    imperfecto: 'Imperfect',
+    futuro: 'Future',
+    subjuntivo: 'Subjunctive',
+    dichos: 'Set phrases',
   },
   settings: {
     title: 'Settings',
