@@ -64,7 +64,6 @@ function Speaker({ onPress, big }: { onPress: () => void; big?: boolean }) {
 const TASK_LABEL: Record<string, string> = {
   'es->en': 'ESCOGE LA TRADUCCIÓN',
   'en->es': '¿CÓMO SE DICE?',
-  'listen->en': 'ESCUCHA Y ESCOGE',
   'picture->es': '¿QUÉ ES ESTO?',
 };
 
@@ -95,7 +94,6 @@ export default function Session() {
     // effect. Repair must speak too — for a listening question the prompt is
     // the audio, so skipping it here left repair silent.
     if (state?.phase !== 'asking' && state?.phase !== 'repairing') return;
-    if (question && question.direction === 'listen->en') speak(question.word);
   }, [question?.word.id, state?.phase]);
 
   // How many of state.results have reached storage. Counting answers rather
@@ -279,8 +277,6 @@ export default function Session() {
             <View style={{ backgroundColor: colour.surface, borderWidth: 2, borderColor: colour.ink, borderRadius: 22, paddingVertical: 12, paddingHorizontal: 22 }}>
               <Image source={VOCAB_ART[question.promptImage]} style={{ width: 190, height: 190 }} resizeMode="contain" />
             </View>
-          ) : question.direction === 'listen->en' ? (
-            <Speaker big onPress={() => speak(question.word)} />
           ) : (
             <View style={{ alignItems: 'center', gap: 14 }}>
               <Text style={{ fontFamily: font.displayHeavy, fontSize: 44, color: colour.ink, textAlign: 'center' }}>

@@ -17,8 +17,8 @@ export function promote(box: Box): Box {
   return (box < MAX_BOX ? box + 1 : MAX_BOX) as Box;
 }
 
-/** Which counter a direction advances. Listening is recognition; pictures are production. */
-const answersInEnglish = (d: Direction): boolean => d === 'es->en' || d === 'listen->en';
+/** Which counter a direction advances. Recognition reads Spanish; pictures are production. */
+const answersInEnglish = (d: Direction): boolean => d === 'es->en';
 
 /** Correct answers needed in each direction before a word counts as known. */
 export const KNOWN_THRESHOLD = 3;

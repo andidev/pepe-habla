@@ -1,11 +1,11 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildQuestions, grade, optionMeaning } from './quiz.ts';
+import { buildQuestions, grade, optionMeaning, optionSpoken, promptSpoken } from './quiz.ts';
 import { mulberry32 } from './rng.ts';
 import type { PartOfSpeech, Word } from './types.ts';
 
 const word = (id: string, pos: PartOfSpeech = 'noun'): Word => ({
-  id, es: `es-${id}`, en: `en-${id}`, pos, tier: 1,
+  id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos, tier: 1,
 });
 
 const pool = Array.from({ length: 20 }, (_, i) => word(`w${i}`));
@@ -97,9 +97,44 @@ describe('buildQuestions', () => {
     const b = buildQuestions(pool.slice(0, 5), pool, mulberry32(8));
     assert.deepEqual(a, b);
   });
+
+  test('in Swedish, prompt and answer use the Swedish gloss', () => {
+    const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(5), 'sv');
+    for (const q of qs) {
+      if (q.direction === 'en->es') {
+        assert.equal(q.prompt, q.word.sv);
+        assert.equal(q.answer, q.word.es);
+      } else if (q.direction === 'es->en') {
+        assert.equal(q.prompt, q.word.es);
+        assert.equal(q.answer, q.word.sv);
+        for (const o of q.options) assert.ok(o.startsWith('sv-'), `option "${o}" is not Swedish`);
+      }
+    }
+  });
+
+  test('defaults to English glosses', () => {
+    assert.deepEqual(
+      buildQuestions(pool.slice(0, 5), pool, mulberry32(8)),
+      buildQuestions(pool.slice(0, 5), pool, mulberry32(8), 'en'),
+    );
+  });
+
+  test('distinct options are judged in the gloss language', () => {
+    // Two words whose Swedish collides must never both be offered.
+    const twins = [
+      { ...word('a'), sv: 'samma' },
+      { ...word('b'), sv: 'samma' },
+      ...pool.slice(0, 6),
+    ];
+    for (let seed = 1; seed < 30; seed++) {
+      for (const q of buildQuestions([twins[0]!], twins, mulberry32(seed), 'sv')) {
+        assert.equal(new Set(q.options).size, q.options.length);
+      }
+    }
+  });
 });
 
-describe('four question types', () => {
+describe('three question types', () => {
   const withSprites = pool.map((w, i) =>
     i % 3 === 0 ? { ...w, sprite: `vocab-${w.id}.png` } : w);
 
@@ -113,24 +148,21 @@ describe('four question types', () => {
     assert.equal(q.answer, 'es-taco');
   });
 
-  test('a listening question is answered in English and carries the Spanish to speak', () => {
-    const qs = buildQuestions(pool.slice(0, 10), pool, mulberry32(3));
-    const listens = qs.filter((q) => q.direction === 'listen->en');
-    assert.ok(listens.length > 0, 'expected at least one listening question in ten');
-    for (const q of listens) {
-      assert.equal(q.prompt, q.word.es, 'prompt is the Spanish the app will speak');
-      assert.equal(q.answer, q.word.en);
-      assert.equal(q.promptImage, undefined);
+  test('there are no listening-only questions', () => {
+    for (let seed = 1; seed < 20; seed++) {
+      const qs = buildQuestions(withSprites.slice(0, 10), withSprites, mulberry32(seed));
+      for (const q of qs) {
+        assert.ok(['es->en', 'en->es', 'picture->es'].includes(q.direction), q.direction);
+      }
     }
   });
 
-  test('over ten words the mix is roughly 4 / 3 / 2 / 1', () => {
+  test('over ten words the mix is 5 / 4 / 1', () => {
     const qs = buildQuestions(withSprites.slice(0, 10), withSprites, mulberry32(5));
     const count = (d: string) => qs.filter((q) => q.direction === d).length;
     assert.equal(count('picture->es'), 1);
-    assert.equal(count('listen->en'), 2);
-    assert.equal(count('en->es'), 3);
-    assert.equal(count('es->en'), 4);
+    assert.equal(count('en->es'), 4);
+    assert.equal(count('es->en'), 5);
   });
 
   test('a word with no art never gets a picture question', () => {
@@ -138,13 +170,28 @@ describe('four question types', () => {
     assert.equal(qs.filter((q) => q.direction === 'picture->es').length, 0);
   });
 
-  test('picture and listening options are still four distinct plausible words', () => {
+  test('picture options are still four distinct plausible words', () => {
     const qs = buildQuestions(withSprites.slice(0, 10), withSprites, mulberry32(9));
     for (const q of qs) {
       assert.equal(q.options.length, 4);
       assert.equal(new Set(q.options).size, 4);
       assert.ok(q.options.includes(q.answer));
     }
+  });
+});
+
+describe('what is spoken', () => {
+  test('recognition speaks the Spanish prompt and the gloss options', () => {
+    assert.equal(promptSpoken('es->en'), 'es');
+    assert.equal(optionSpoken('es->en'), 'gloss');
+  });
+  test('production speaks the gloss prompt and the Spanish options', () => {
+    assert.equal(promptSpoken('en->es'), 'gloss');
+    assert.equal(optionSpoken('en->es'), 'es');
+  });
+  test('a picture says nothing on arrival and Spanish on a tap', () => {
+    assert.equal(promptSpoken('picture->es'), null);
+    assert.equal(optionSpoken('picture->es'), 'es');
   });
 });
 
@@ -163,12 +210,16 @@ describe('optionMeaning', () => {
     assert.equal(optionMeaning('picture->es', 'es-a', words), 'en-a');
   });
 
-  test('treats a listening question as answered in English', () => {
-    assert.equal(optionMeaning('listen->en', 'en-a', words), 'es-a');
-  });
-
   test('returns null for an option that is not in the pool', () => {
     assert.equal(optionMeaning('es->en', 'nonsense', words), null);
+  });
+
+  test('a Spanish option means its Swedish gloss in Swedish', () => {
+    assert.equal(optionMeaning('en->es', 'es-a', words, 'sv'), 'sv-a');
+  });
+
+  test('a Swedish option means its Spanish', () => {
+    assert.equal(optionMeaning('es->en', 'sv-b', words, 'sv'), 'es-b');
   });
 });
 

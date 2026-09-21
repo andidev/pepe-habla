@@ -101,11 +101,6 @@ describe('direction counters', () => {
     assert.equal(next.rightEnToEs, 1);
   });
 
-  test('a listening answer counts as recognition', () => {
-    const next = applyAnswer(at(), true, '2026-09-20', 'listen->en');
-    assert.equal(next.rightEsToEn, 1);
-  });
-
   test('a picture answer counts as production', () => {
     const next = applyAnswer(at(), true, '2026-09-20', 'picture->es');
     assert.equal(next.rightEnToEs, 1);

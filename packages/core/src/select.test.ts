@@ -5,7 +5,7 @@ import { mulberry32 } from './rng.ts';
 import type { Progress, Word } from './types.ts';
 
 const word = (id: string, tier: 1 | 2 | 3 = 1): Word => ({
-  id, es: id, en: id, pos: 'noun', tier,
+  id, es: id, en: id, sv: id, pos: 'noun', tier,
 });
 
 const prog = (id: string, box: Progress['box'], dueOn: string): Progress => ({

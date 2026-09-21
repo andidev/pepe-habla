@@ -1,5 +1,6 @@
 /** The public surface of core. Nothing outside reaches past this file. */
 export * from './types.ts';
+export * from './language.ts';
 export * from './dates.ts';
 export * from './rng.ts';
 export * from './leitner.ts';

@@ -5,7 +5,7 @@ import {
 } from './session.ts';
 import type { Question, Word } from './types.ts';
 
-const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, pos: 'noun', tier: 1 });
+const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos: 'noun', tier: 1 });
 
 const q = (id: string): Question => ({
   word: word(id),

@@ -4,7 +4,7 @@ import { summarise, leeches } from './stats.ts';
 import { isKnown } from './leitner.ts';
 import type { Progress, Word } from './types.ts';
 
-const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, pos: 'noun', tier: 1 });
+const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos: 'noun', tier: 1 });
 
 const prog = (over: Partial<Progress> & { id: string }): Progress => ({
   box: 1, seen: 0, right: 0, wrong: 0,
