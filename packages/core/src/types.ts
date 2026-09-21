@@ -42,7 +42,7 @@ export interface Progress {
   seen: number;
   right: number;
   wrong: number;
-  /** Correct answers where the learner read Spanish and chose English. */
+  /** Correct answers where the learner read Spanish and chose the gloss. */
   rightEsToEn: number;
   /** Correct answers where the learner produced the Spanish. */
   rightEnToEs: number;

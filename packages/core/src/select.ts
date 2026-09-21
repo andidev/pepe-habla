@@ -5,7 +5,7 @@ import { shuffle } from './rng.ts';
 /**
  * Choose the words to practise today.
  *
- * Due work comes first, shortest streak first, most overdue first within a box —
+ * Due work comes first, shortest streak first, most overdue first within a streak —
  * so the words you keep getting wrong keep coming back. Only once the due pile
  * is exhausted do we introduce new words, lowest tier first. Ties are broken
  * randomly so sessions don't fossilise into the same order every day.

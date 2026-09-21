@@ -3,6 +3,7 @@ import { INITIAL_EASE } from './sm2.ts';
 
 type Added = 'rightEsToEn' | 'rightEnToEs' | 'knownOn';
 type Scheduling = 'reps' | 'ease' | 'interval';
+type Counts = 'seen' | 'right' | 'wrong';
 
 /** A Leitner box, as every version before SM-2 stored it. 1 = shaky, 5 = solid. */
 type Box = 1 | 2 | 3 | 4 | 5;
@@ -10,10 +11,13 @@ type Box = 1 | 2 | 3 | 4 | 5;
 /**
  * What each box carries over as.
  *
- * A word in box N has N-1 consecutive correct answers behind it, and keeps the
- * interval Leitner had already given it, so no word jumps forward or back on
- * the day of the upgrade. Everyone starts at the default ease: we have no
- * response times from before, and guessing at them would be inventing data.
+ * A word in box N has N-1 consecutive correct answers behind it, so that
+ * becomes `reps`. The interval lands on the nearest point of SM-2's own
+ * 1 -> 3 -> 8 ladder, not the interval Leitner had already given the box --
+ * the two scales agree at the ends but not in the middle. Either way nothing
+ * actually moves on the day of the upgrade, because `dueOn` is carried over
+ * untouched. Everyone starts at the default ease: we have no response times
+ * from before, and guessing at them would be inventing data.
  */
 const FROM_BOX: Record<Box, { reps: number; interval: number }> = {
   1: { reps: 0, interval: 1 },
@@ -31,8 +35,8 @@ const boxOf = (box: unknown): Box =>
  * the phase 2 counters may be absent, and a Leitner `box` may be present.
  */
 export type StoredProgress =
-  Omit<Progress, Added | Scheduling>
-  & Partial<Pick<Progress, Added | Scheduling>>
+  Omit<Progress, Added | Scheduling | Counts>
+  & Partial<Pick<Progress, Added | Scheduling | Counts>>
   & { box?: number };
 
 export interface StoredVocabDb {
@@ -65,10 +69,14 @@ export function migrateProgress(db: StoredVocabDb): VocabDb {
       reps: p.reps ?? carried.reps,
       ease: p.ease ?? INITIAL_EASE,
       interval: p.interval ?? carried.interval,
+      seen: p.seen ?? 0,
+      right: p.right ?? 0,
+      wrong: p.wrong ?? 0,
       rightEsToEn: p.rightEsToEn ?? 0,
       rightEnToEs: p.rightEnToEs ?? 0,
       knownOn: p.knownOn ?? null,
     };
   }
-  return { ...db, progress };
+  const version = db?.version ?? 1;
+  return { ...db, version, progress };
 }

@@ -62,6 +62,17 @@ describe('migrateProgress', () => {
     assert.deepEqual([p.rightEsToEn, p.rightEnToEs, p.knownOn], [0, 0, null]);
   });
 
+  test('missing seen, right and wrong default to zero', () => {
+    // No stored record has ever lacked these -- this is purely defensive --
+    // but a NaN counter is exactly the failure migrateProgress exists to heal.
+    const record = legacy();
+    delete record.seen;
+    delete record.right;
+    delete record.wrong;
+    const p = migrateProgress(db(record)).progress['ser']!;
+    assert.deepEqual([p.seen, p.right, p.wrong], [0, 0, 0]);
+  });
+
   test('a null counter becomes zero too', () => {
     // A CLI built before migrateProgress existed computed `undefined + 0` and
     // JSON.stringify wrote the NaN out as null. Absent and null must both heal.
