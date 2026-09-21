@@ -82,7 +82,14 @@ export default function Session() {
   }, []);
 
   // Leaving the round must leave nothing talking or ticking behind it.
-  useEffect(() => () => { clearTimers(); stopSpeaking(); }, [clearTimers]);
+  // Bumping seq first matters: stopSpeaking() resolves the pending say(), and
+  // its .then must find the chain interrupted rather than cue and schedule an
+  // advance on a screen that is gone.
+  useEffect(() => () => {
+    clearTimers();
+    seq.current += 1;
+    stopSpeaking();
+  }, [clearTimers]);
 
   useEffect(() => {
     (async () => {
@@ -254,7 +261,10 @@ export default function Session() {
     setPlaying(false);
 
     const hit = option === question.answer;
-    setState(reduce(state, { type: 'answer', option, ms: Date.now() - shownAt.current }));
+    const ms = Date.now() - shownAt.current;
+    // Functional, so a second tap before a re-render reduces from the state the
+    // first tap left, not a stale copy with nothing tried.
+    setState((s) => (s ? reduce(s, { type: 'answer', option, ms }) : s));
 
     const toastId = Date.now();
     setToast({ kind: hit ? 'good' : 'bad', id: toastId, countdown: false });

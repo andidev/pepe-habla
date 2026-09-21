@@ -58,7 +58,8 @@ export function OptionButton({
         minHeight: 56, paddingHorizontal: 18,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.md,
       }}>
-        <Text style={{ fontFamily: font.bodyHeavy, fontSize: 18, color: TEXT[state], flexShrink: 1 }}>
+        {/* One line always: a long meaning must never grow the button and move the layout. */}
+        <Text numberOfLines={1} ellipsizeMode="tail" style={{ fontFamily: font.bodyHeavy, fontSize: 18, color: TEXT[state], flexShrink: 1 }}>
           {label}
           {detail !== undefined && (
             <Text style={{ fontFamily: font.body, fontSize: 14 }}>{`  = ${detail}`}</Text>
