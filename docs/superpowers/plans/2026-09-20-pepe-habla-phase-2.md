@@ -1163,7 +1163,7 @@ export default function Settings() {
             Pepe Habla
           </Text>
           <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, marginTop: 4, lineHeight: 19 }}>
-            {WORDS.length} palabras en español mexicano, con pronunciación grabada.
+            {WORDS.length} palabras en español mexicano.
             Pepe es un perro callejero de la Ciudad de México.
           </Text>
         </View>
