@@ -1,7 +1,13 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileStore, projectRoot } from '../store/fileStore.ts';
-import { GREETINGS } from '../../apps/app/storage/greetings.ts';
+
+// A non-literal specifier keeps apps/app out of the root tsc program (it has its
+// own tsconfig); tsc -p apps/app already enforces Greeting.sv at the type level.
+const greetingsPath = '../../apps/app/storage/greetings.ts';
+const { GREETINGS } = (await import(greetingsPath)) as {
+  GREETINGS: Record<string, readonly { es: string; sv?: string }[]>;
+};
 
 const words = await fileStore(projectRoot).loadWords();
 const norm = (s: string) => s.trim().toLowerCase();

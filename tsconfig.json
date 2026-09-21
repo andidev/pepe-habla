@@ -15,11 +15,5 @@
     "baseUrl": ".",
     "paths": { "@pepe/core": ["packages/core/src/index.ts"] }
   },
-  "include": ["packages/core/src/**/*.ts", "tools/**/*.ts"],
-  // tools/seed/seed.test.ts imports apps/app/storage/greetings.ts to check its content.
-  // Pulling that file (and vocabulary.ts) into this project's NodeNext/verbatimModuleSyntax
-  // checking fails, because apps/app has its own tsconfig (module: preserve, no "type": "module"
-  // in its package.json). apps/app's own `tsc -p apps/app` already type-checks those files;
-  // node --test type-strips seed.test.ts at run time without full checking either way.
-  "exclude": ["tools/seed/**"]
+  "include": ["packages/core/src/**/*.ts", "tools/**/*.ts"]
 }
