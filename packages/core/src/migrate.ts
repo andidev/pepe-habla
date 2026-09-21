@@ -11,13 +11,11 @@ type Box = 1 | 2 | 3 | 4 | 5;
 /**
  * What each box carries over as.
  *
- * A word in box N has N-1 consecutive correct answers behind it, so that
- * becomes `reps`. The interval lands on the nearest point of SM-2's own
- * 1 -> 3 -> 8 ladder, not the interval Leitner had already given the box --
- * the two scales agree at the ends but not in the middle. Either way nothing
- * actually moves on the day of the upgrade, because `dueOn` is carried over
- * untouched. Everyone starts at the default ease: we have no response times
- * from before, and guessing at them would be inventing data.
+ * A word in box N has N−1 consecutive correct answers behind it. The intervals
+ * are mostly SM-2's own values (1, 3, 8 for reps 1, 2, 3), except box 5 keeps
+ * Leitner's 16 instead of SM-2's 20. This table is fixed by the spec and must
+ * not be recomputed. Nothing moves on the upgrade day because `dueOn` is
+ * carried over untouched. Everyone starts at the default ease.
  */
 const FROM_BOX: Record<Box, { reps: number; interval: number }> = {
   1: { reps: 0, interval: 1 },

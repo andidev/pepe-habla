@@ -58,7 +58,7 @@ Intervals: **1 day, then 3, then `round(interval × ease)`**, times 1.3 when the
 1. **The first two intervals are fixed even on an easy answer.** "× 1.3 on easy" attaches to the `round(interval × ease)` step, which is the third answer onwards. An easy first answer still banks the ease bonus; it just pays from the third answer on.
 2. **The 30-second row does no work today.** A right answer is never penalised, so a 45-second right answer already grades `good` by the `≥ 3 s` row. It is implemented as a named constant with its own test anyway, so that the distraction rule is already in place if a `hard` grade is ever added — and so that nobody "simplifies" it away without noticing what it was for.
 
-**Migration.** A word in Leitner box N has N−1 consecutive correct answers behind it, and keeps the interval Leitner had given it, so nothing jumps forward or back on the day of the upgrade:
+**Migration.** A word in Leitner box N has N−1 consecutive correct answers behind it, using intervals mostly from SM-2's own ladder (1, 3, 8 for reps 1, 2, 3) except box 5 which keeps Leitner's 16, so nothing jumps forward or back on the day of the upgrade:
 
 | Box | `reps` | `interval` | `ease` |
 |---|---|---|---|
