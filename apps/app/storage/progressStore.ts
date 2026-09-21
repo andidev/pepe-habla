@@ -1,26 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applyAnswer, freshProgress, type Progress, type VocabDb } from '@pepe/core';
+import { applyAnswer, freshProgress, migrateProgress, type VocabDb, type StoredVocabDb } from '@pepe/core';
 import type { AnswerRecord } from '@pepe/core';
 import seededProgress from '../../../data/vocab.json';
 
 const KEY = 'pepe-habla/progress/v1';
-
-/** Progress saved before direction counters existed gets them, at zero. */
-function migrate(db: VocabDb): VocabDb {
-  const progress: Record<string, Progress> = {};
-  for (const [id, p] of Object.entries(db.progress)) {
-    progress[id] = {
-      ...p,
-      rightEsToEn: p.rightEsToEn ?? 0,
-      rightEnToEs: p.rightEnToEs ?? 0,
-      // Deliberately null for words already known before this migration: we do
-      // not know when they were learned, and guessing would inflate the
-      // "this week" figure on the very first launch after upgrading.
-      knownOn: p.knownOn ?? null,
-    };
-  }
-  return { ...db, progress };
-}
 
 /**
  * Progress lives on the phone. The repo's data/vocab.json seeds the very first
@@ -31,17 +14,17 @@ export async function loadProgress(): Promise<VocabDb> {
   const raw = await AsyncStorage.getItem(KEY);
   if (raw !== null) {
     try {
-      return migrate(JSON.parse(raw) as VocabDb);
+      return migrateProgress(JSON.parse(raw) as StoredVocabDb);
     } catch {
       // Keep whatever we could not parse. Silently discarding months of
       // practice is worse than any error we could show.
       void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
       // The bundled seed predates the direction counters, so its shape does
-      // not satisfy VocabDb until migrate() fills them in.
-      return migrate(seededProgress as unknown as VocabDb);
+      // not satisfy VocabDb until migrateProgress() fills them in.
+      return migrateProgress(seededProgress as StoredVocabDb);
     }
   }
-  return migrate(seededProgress as unknown as VocabDb);
+  return migrateProgress(seededProgress as StoredVocabDb);
 }
 
 export async function saveProgress(db: VocabDb): Promise<void> {

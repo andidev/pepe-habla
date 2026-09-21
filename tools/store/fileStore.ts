@@ -1,6 +1,7 @@
 import { readFile, writeFile, readdir, mkdir, appendFile } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
-import type { VocabDb, Word } from '@pepe/core';
+import type { VocabDb, Word, StoredVocabDb } from '@pepe/core';
+import { migrateProgress } from '@pepe/core';
 import { emptyDb, type VocabStore } from './store.ts';
 
 /** The Node adapter: seed files on disk, progress in data/vocab.json, logs in log/. */
@@ -27,7 +28,8 @@ export function fileStore(root: string): VocabStore {
 
     async loadProgress(): Promise<VocabDb> {
       try {
-        return JSON.parse(await readFile(dbPath, 'utf8')) as VocabDb;
+        const stored = JSON.parse(await readFile(dbPath, 'utf8')) as StoredVocabDb;
+        return migrateProgress(stored);
       } catch (err) {
         if ((err as NodeJS.ErrnoException).code === 'ENOENT') return emptyDb();
         throw err;

@@ -3,6 +3,7 @@ export * from './types.ts';
 export * from './dates.ts';
 export * from './rng.ts';
 export * from './leitner.ts';
+export * from './migrate.ts';
 export * from './select.ts';
 export * from './quiz.ts';
 export * from './session.ts';
