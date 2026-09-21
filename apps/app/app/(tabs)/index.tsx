@@ -26,16 +26,20 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
+/** One number with its caption. Grouped, so a screen reader says "12 kända"
+ *  rather than stopping on "12" and then on "KÄNDA". */
 function Stat({ value, label, tint }: { value: string; label: string; tint?: string }) {
   return (
-    <PressableCard style={{ flex: 1 }} depth={3}>
-      <View style={{ paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center' }}>
-        <Text style={{ fontFamily: font.display, fontSize: 23, color: tint ?? colour.ink }}>{value}</Text>
-        <Text style={{ fontFamily: font.bodyHeavy, fontSize: 11, color: colour.muted, letterSpacing: 0.5 }}>
-          {label}
-        </Text>
-      </View>
-    </PressableCard>
+    <View accessible accessibilityLabel={`${value} ${label.toLowerCase()}`} style={{ flex: 1 }}>
+      <PressableCard depth={3}>
+        <View style={{ paddingVertical: 11, paddingHorizontal: 8, alignItems: 'center' }}>
+          <Text style={{ fontFamily: font.display, fontSize: 23, color: tint ?? colour.ink }}>{value}</Text>
+          <Text style={{ fontFamily: font.bodyHeavy, fontSize: 11, color: colour.muted, letterSpacing: 0.5 }}>
+            {label}
+          </Text>
+        </View>
+      </PressableCard>
+    </View>
   );
 }
 
