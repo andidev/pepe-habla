@@ -5,14 +5,20 @@ is the app's mascot. Mexican Spanish, English glosses, Leitner scheduling.
 
 ## Practising
 
+The app lives in `apps/app`, a native Expo app. Run it with:
+
+```bash
+npx expo start
+```
+
 In Claude Code, type `/practice`. You get ten words as multiple-choice
 questions — click, don't type — and your answers are recorded.
 
-By hand:
+By hand, from the command line:
 
 ```bash
-node src/cli.ts pick      # today's ten, as JSON questions
-node src/cli.ts stats     # where you stand
+npm run practice -- pick    # today's ten, as JSON questions
+npm run practice -- stats   # where you stand
 ```
 
 ## How the scheduling works
@@ -40,27 +46,29 @@ missing keep coming back, and the ones you have solid fade out.
 ## Layout
 
 ```
-src/core/       pure logic — no I/O, no node: imports
-  types.ts      shared shapes
-  dates.ts      ISO date arithmetic, in UTC
-  leitner.ts    boxes, intervals, applying an answer
-  select.ts     choosing the day's words
-  quiz.ts       building multiple-choice questions
-  rng.ts        seeded randomness
-src/storage/
-  store.ts      the VocabStore interface
-  fileStore.ts  the Node adapter
-src/cli.ts      session driver
-data/seed/      the word list, by tier
-data/vocab.json your progress — the part that matters
-log/            one file per session
+packages/core/src/  pure logic — no I/O, no node:/react/react-native imports
+  types.ts          shared shapes
+  dates.ts          ISO date arithmetic, in UTC
+  leitner.ts        boxes, intervals, applying an answer
+  select.ts         choosing the day's words
+  quiz.ts           building multiple-choice questions
+  session.ts        the practice-round reducer
+  streak.ts         the daily streak
+  rng.ts            seeded randomness (injected, never called internally)
+tools/store/
+  store.ts          the VocabStore interface
+  fileStore.ts      the Node adapter
+tools/cli.ts        session driver for the command line
+data/seed/          the word list, by tier
+data/vocab.json     your progress — the part that matters
+apps/app/           the Expo app (see Practising above)
 ```
 
-`src/core/` imports nothing from `node:` and touches no files. That is
-deliberate: to put this on the web or in an Expo app, import `src/core/`
-unchanged and write a new `VocabStore` — `localStorage`, `AsyncStorage`,
-SQLite, or a fetch-backed one. Scheduling, selection, distractor generation
-and grading all come along for free.
+`packages/core/` imports nothing from `node:`, `react`, or `react-native`,
+and touches no files. That is deliberate: `apps/app` already imports it
+unchanged and pairs it with `AsyncStorage`; a future web target could do the
+same with `localStorage`, SQLite, or a fetch-backed store. Scheduling,
+selection, distractor generation and grading all come along for free.
 
 ## Development
 
@@ -71,6 +79,10 @@ npm run typecheck
 
 Node 24 runs the TypeScript directly, so there is no build step. The only
 dependency is TypeScript itself, for typechecking.
+
+Other npm scripts: `npm run practice` (the CLI driver above), `npm run
+sprites`, `npm run sounds`, and `npm run speech` (Python tools that build the
+app's art and audio assets).
 
 ## Adding words
 

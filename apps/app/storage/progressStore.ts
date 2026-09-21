@@ -16,7 +16,9 @@ export async function loadProgress(): Promise<VocabDb> {
     try {
       return JSON.parse(raw) as VocabDb;
     } catch {
-      // A corrupt blob should cost you your history, not the app.
+      // Keep whatever we could not parse. Silently discarding months of
+      // practice is worse than any error we could show.
+      void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
       return seededProgress as VocabDb;
     }
   }

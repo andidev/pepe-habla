@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { AppState, Image, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -74,7 +74,7 @@ export default function Session() {
   const [db, setDb] = useState<VocabDb | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
   const shownAt = useRef(Date.now());
-  const saved = useRef<number>(0);          // rounds already written to storage
+  const counted = useRef<number>(0);        // rounds whose streak has been bumped
 
   useEffect(() => {
     (async () => {
@@ -90,32 +90,62 @@ export default function Session() {
   // Speak listening questions as soon as they appear, and reset the clock.
   useEffect(() => {
     shownAt.current = Date.now();
-    // Only while asking. The dep array alone is not enough: answering flips the
-    // phase without changing the word, which re-runs this effect.
-    if (state?.phase !== 'asking') return;
+    // Only while asking or repairing. The dep array alone is not enough:
+    // answering flips the phase without changing the word, which re-runs this
+    // effect. Repair must speak too — for a listening question the prompt is
+    // the audio, so skipping it here left repair silent.
+    if (state?.phase !== 'asking' && state?.phase !== 'repairing') return;
     if (question && question.direction === 'listen->en') speak(question.word);
   }, [question?.word.id, state?.phase]);
 
-  // Persist exactly once, when a round reaches its summary. The `saved` ref
-  // is what stops a re-render from writing the same round twice.
+  // How many of state.results have reached storage. Counting answers rather
+  // than rounds means a mid-round write and the summary write compose instead
+  // of one blocking the other.
+  const persisted = useRef(0);
+  const latest = useRef<{ state: SessionState | null; db: VocabDb | null }>({ state: null, db: null });
+  latest.current = { state, db };
+
+  const persistAnswers = useCallback(async () => {
+    const { state: s, db: current } = latest.current;
+    if (!s || !current) return;
+    const unwritten = s.results.slice(persisted.current);
+    if (unwritten.length === 0) return;
+    persisted.current = s.results.length;          // claim them before awaiting
+    const next = recordAnswers(current, unwritten, todayISO());
+    setDb(next);
+    await saveProgress(next);
+  }, []);
+
+  // Leaving mid-round must not cost the learner the answers they gave.
   useEffect(() => {
-    if (!state || !db || !streak) return;
-    if (state.phase !== 'summary' || saved.current >= state.round) return;
-    saved.current = state.round;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next !== 'active') void persistAnswers();
+    });
+    return () => {
+      sub.remove();
+      void persistAnswers();                        // also on unmount, e.g. the X
+    };
+  }, [persistAnswers]);
+
+  // Bump the streak exactly once, when a round reaches its summary. The
+  // `counted` ref is what stops a re-render from bumping the same round twice.
+  useEffect(() => {
+    if (!state || !streak) return;
+    if (state.phase !== 'summary' || counted.current >= state.round) return;
+
+    const fresh = state.results.filter((r) => r.round === state.round);
+    if (fresh.length === 0) return;                 // nothing answered — no false streak
+    counted.current = state.round;
 
     (async () => {
+      await persistAnswers();
       const today = todayISO();
-      // Only this round's first answers. Repair answers were never recorded.
-      const fresh = state.results.filter((r) => r.round === state.round);
-      const nextDb = recordAnswers(db, fresh, today);
-      const nextStreak = bumpStreak(streak, today);
-
-      setDb(nextDb);
-      setStreak(nextStreak);
-      await Promise.all([saveProgress(nextDb), saveStreak(nextStreak)]);
-
+      const next = bumpStreak(streak, today);
+      const grew = next.days > streak.days;
+      setStreak(next);
+      await saveStreak(next);
       // A longer streak is worth more noise than finishing a routine round.
-      cue(nextStreak.days > streak.days && nextStreak.days % 5 === 0 ? 'streak' : 'complete');
+      cue(grew && next.days % 5 === 0 ? 'streak' : 'complete');
     })();
   }, [state?.phase, state?.round]);
 
@@ -139,10 +169,9 @@ export default function Session() {
       // Everything already answered this session is out, so another round is
       // genuinely new material rather than the same ten words reshuffled.
       const seen = new Set(state.results.map((r) => r.wordId));
-      setState(reduce(state, {
-        type: 'anotherRound',
-        questions: buildRound(current.progress, todayISO(), state.round + 1, seen),
-      }));
+      const questions = buildRound(current.progress, todayISO(), state.round + 1, seen);
+      if (questions.length === 0) return;             // nothing left today
+      setState(reduce(state, { type: 'anotherRound', questions }));
     };
 
     return (

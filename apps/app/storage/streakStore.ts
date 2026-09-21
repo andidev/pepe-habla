@@ -9,6 +9,9 @@ export async function loadStreak(): Promise<Streak> {
   try {
     return JSON.parse(raw) as Streak;
   } catch {
+    // Keep whatever we could not parse. Silently discarding months of
+    // practice is worse than any error we could show.
+    void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
     return emptyStreak();
   }
 }
