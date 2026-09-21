@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import { isDue, todayISO, type Streak } from '@pepe/core';
+import { isDue, isKnown, todayISO, type Streak } from '@pepe/core';
 import { Bunting } from '../../components/Bunting';
 import { Screen } from '../../components/Screen';
 import { Pepe } from '../../components/Pepe';
@@ -57,7 +57,11 @@ export default function Home() {
       const today = todayISO();
       const all = Object.values(db.progress);
       setDue(all.filter((p) => isDue(p, today)).length);
-      setKnown(all.filter((p) => p.box >= 4).length);
+      // The same measure the stats screen calls Conocidas: three correct in
+      // *each* direction. It used to be box >= 4 here, which is a different,
+      // looser thing wearing the same label. The looser count returns in 3b
+      // as `dominadas`, on the level card, where it is the unlock gate.
+      setKnown(all.filter((p) => isKnown(p)).length);
       setStreak(s);
     })();
   }, []));

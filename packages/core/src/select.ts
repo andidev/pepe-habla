@@ -1,11 +1,11 @@
 import type { Progress, Rng, Word } from './types.ts';
-import { isDue } from './leitner.ts';
+import { isDue } from './progress.ts';
 import { shuffle } from './rng.ts';
 
 /**
  * Choose the words to practise today.
  *
- * Due work comes first, weakest box first, most overdue first within a box —
+ * Due work comes first, shortest streak first, most overdue first within a streak —
  * so the words you keep getting wrong keep coming back. Only once the due pile
  * is exhausted do we introduce new words, lowest tier first. Ties are broken
  * randomly so sessions don't fossilise into the same order every day.
@@ -22,7 +22,7 @@ export function selectDaily(
   const due = shuffle(
     Object.values(progress).filter((p) => byId.has(p.id) && isDue(p, today)),
     rng,
-  ).sort((a, b) => a.box - b.box || a.dueOn.localeCompare(b.dueOn));
+  ).sort((a, b) => a.reps - b.reps || a.dueOn.localeCompare(b.dueOn));
 
   const picked: Word[] = [];
   for (const p of due) {

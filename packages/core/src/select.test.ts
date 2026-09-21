@@ -8,9 +8,9 @@ const word = (id: string, tier: 1 | 2 | 3 = 1): Word => ({
   id, es: id, en: id, sv: id, pos: 'noun', tier,
 });
 
-const prog = (id: string, box: Progress['box'], dueOn: string): Progress => ({
-  id, box, seen: 5, right: 3, wrong: 2, rightEsToEn: 0, rightEnToEs: 0, knownOn: null,
-  lastSeen: '2026-09-01', dueOn,
+const prog = (id: string, reps: number, dueOn: string): Progress => ({
+  id, reps, ease: 2.5, interval: 1, seen: 5, right: 3, wrong: 2,
+  rightEsToEn: 0, rightEnToEs: 0, knownOn: null, lastSeen: '2026-09-01', dueOn,
 });
 
 const rng = () => mulberry32(42);
@@ -41,8 +41,8 @@ describe('selectDaily', () => {
   test('prefers due words over introducing new ones', () => {
     const words = [word('due1'), word('due2'), word('new1'), word('new2')];
     const progress = {
-      due1: prog('due1', 1, '2026-09-19'),
-      due2: prog('due2', 2, '2026-09-18'),
+      due1: prog('due1', 0, '2026-09-19'),
+      due2: prog('due2', 1, '2026-09-18'),
     };
     const picked = selectDaily(words, progress, '2026-09-19', 2, rng());
     assert.deepEqual(picked.map((w) => w.id).sort(), ['due1', 'due2']);
@@ -51,19 +51,19 @@ describe('selectDaily', () => {
   test('weak words come before strong ones — the whole point of the thing', () => {
     const words = [word('strong'), word('weak'), word('middling')];
     const progress = {
-      strong: prog('strong', 5, '2026-09-19'),
-      weak: prog('weak', 1, '2026-09-19'),
-      middling: prog('middling', 3, '2026-09-19'),
+      strong: prog('strong', 4, '2026-09-19'),
+      weak: prog('weak', 0, '2026-09-19'),
+      middling: prog('middling', 2, '2026-09-19'),
     };
     const picked = selectDaily(words, progress, '2026-09-19', 3, rng());
     assert.deepEqual(picked.map((w) => w.id), ['weak', 'middling', 'strong']);
   });
 
-  test('within a box, the most overdue comes first', () => {
+  test('within a streak, the most overdue comes first', () => {
     const words = [word('recent'), word('ancient')];
     const progress = {
-      recent: prog('recent', 2, '2026-09-19'),
-      ancient: prog('ancient', 2, '2026-08-01'),
+      recent: prog('recent', 1, '2026-09-19'),
+      ancient: prog('ancient', 1, '2026-08-01'),
     };
     const picked = selectDaily(words, progress, '2026-09-19', 1, rng());
     assert.deepEqual(picked.map((w) => w.id), ['ancient']);
@@ -71,7 +71,7 @@ describe('selectDaily', () => {
 
   test('tops up with new words when too few are due', () => {
     const words = [word('due1'), word('new1'), word('new2')];
-    const progress = { due1: prog('due1', 1, '2026-09-19') };
+    const progress = { due1: prog('due1', 0, '2026-09-19') };
     const picked = selectDaily(words, progress, '2026-09-19', 3, rng());
     assert.equal(picked.length, 3);
     assert.equal(picked[0]?.id, 'due1', 'due work still leads');
@@ -80,7 +80,7 @@ describe('selectDaily', () => {
   test('never returns the same word twice', () => {
     const words = Array.from({ length: 30 }, (_, i) => word(`w${i}`));
     const progress = Object.fromEntries(
-      words.slice(0, 5).map((w) => [w.id, prog(w.id, 1, '2026-09-19')]),
+      words.slice(0, 5).map((w) => [w.id, prog(w.id, 0, '2026-09-19')]),
     );
     const picked = selectDaily(words, progress, '2026-09-19', 10, rng());
     assert.equal(new Set(picked.map((w) => w.id)).size, picked.length);
@@ -88,12 +88,12 @@ describe('selectDaily', () => {
 
   test('skips words that are not due yet', () => {
     const words = [word('later')];
-    const progress = { later: prog('later', 3, '2026-09-25') };
+    const progress = { later: prog('later', 2, '2026-09-25') };
     assert.deepEqual(selectDaily(words, progress, '2026-09-19', 10, rng()), []);
   });
 
   test('ignores progress for words no longer in the seed', () => {
-    const progress = { ghost: prog('ghost', 1, '2026-09-19') };
+    const progress = { ghost: prog('ghost', 0, '2026-09-19') };
     assert.deepEqual(selectDaily([word('a')], progress, '2026-09-19', 10, rng()).map((w) => w.id), ['a']);
   });
 

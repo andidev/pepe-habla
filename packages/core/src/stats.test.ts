@@ -1,19 +1,19 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { summarise, leeches } from './stats.ts';
-import { isKnown } from './leitner.ts';
+import { isKnown } from './progress.ts';
 import type { Progress, Word } from './types.ts';
 
 const word = (id: string): Word => ({ id, es: `es-${id}`, en: `en-${id}`, sv: `sv-${id}`, pos: 'noun', tier: 1 });
 
 const prog = (over: Partial<Progress> & { id: string }): Progress => ({
-  box: 1, seen: 0, right: 0, wrong: 0,
+  reps: 0, ease: 2.5, interval: 0, seen: 0, right: 0, wrong: 0,
   rightEsToEn: 0, rightEnToEs: 0, knownOn: null,
   lastSeen: null, dueOn: '2026-09-20',
   ...over,
 });
 
-describe('isKnown (re-exported from leitner)', () => {
+describe('isKnown (re-exported from progress)', () => {
   test('needs three correct answers in each direction', () => {
     assert.equal(isKnown(prog({ id: 'a', rightEsToEn: 3, rightEnToEs: 3 })), true);
   });
@@ -27,7 +27,7 @@ describe('isKnown (re-exported from leitner)', () => {
   });
 
   test('a high box does not make a word known on its own', () => {
-    assert.equal(isKnown(prog({ id: 'a', box: 5, rightEsToEn: 3, rightEnToEs: 0 })), false);
+    assert.equal(isKnown(prog({ id: 'a', reps: 4, rightEsToEn: 3, rightEnToEs: 0 })), false);
   });
 });
 

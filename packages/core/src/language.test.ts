@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  gloss, glossLanguage, isAppLanguage, languageForLocale,
+  answersInGloss, gloss, glossLanguage, isAppLanguage, languageForLocale,
 } from './language.ts';
 import type { Word } from './types.ts';
 
@@ -29,6 +29,14 @@ describe('languageForLocale', () => {
     assert.equal(languageForLocale(''), 'en');
   });
   test('case does not matter', () => assert.equal(languageForLocale('SV-se'), 'sv'));
+});
+
+describe('answersInGloss', () => {
+  test('recognition is answered in the gloss, production and pictures in Spanish', () => {
+    assert.equal(answersInGloss('es->en'), true);
+    assert.equal(answersInGloss('en->es'), false);
+    assert.equal(answersInGloss('picture->es'), false);
+  });
 });
 
 describe('isAppLanguage', () => {
