@@ -13,6 +13,9 @@ interface Props {
   onPress?: () => void;
   disabled?: boolean;
   style?: ViewStyle;
+  /** Announced by a screen reader. Required in practice for anything tappable. */
+  label?: string;
+  role?: 'button' | 'link';
 }
 
 /**
@@ -22,7 +25,7 @@ interface Props {
  * because both platforms' native shadows are blurred and this design is not.
  */
 export function PressableCard({
-  children, depth = 4, face = colour.surface, onPress, disabled, style,
+  children, depth = 4, face = colour.surface, onPress, disabled, style, label, role,
 }: Props) {
   const sunk = useSharedValue(0);
 
@@ -36,6 +39,9 @@ export function PressableCard({
       disabled={disabled || !onPress}
       onPressIn={() => { sunk.value = withTiming(1, { duration: 60 }); }}
       onPressOut={() => { sunk.value = withTiming(0, { duration: 110 }); }}
+      accessibilityRole={onPress ? (role ?? 'button') : undefined}
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: Boolean(disabled || !onPress) }}
       style={[{ borderRadius: radius.card, backgroundColor: colour.ink }, style]}
     >
       <Animated.View

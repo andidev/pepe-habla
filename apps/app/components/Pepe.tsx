@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { Image } from 'react-native';
+import { useEffect, useState } from 'react';
+import { AccessibilityInfo, Image } from 'react-native';
 import Animated, {
   Easing, cancelAnimation, useAnimatedStyle, useSharedValue,
   withRepeat, withSequence, withTiming,
@@ -29,12 +29,24 @@ export function Pepe({ pose, motion = 'breathe', size }: Props) {
   const squashY = useSharedValue(1);
   const tilt = useSharedValue(0);
 
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    void AccessibilityInfo.isReduceMotionEnabled().then((on) => {
+      if (alive) setReduceMotion(on);
+    });
+    const sub = AccessibilityInfo.addEventListener('reduceMotionChanged', setReduceMotion);
+    return () => { alive = false; sub.remove(); };
+  }, []);
+
   useEffect(() => {
     cancelAnimation(lift);
     cancelAnimation(squashX);
     cancelAnimation(squashY);
     cancelAnimation(tilt);
     lift.value = 0; squashX.value = 1; squashY.value = 1; tilt.value = 0;
+    if (reduceMotion) return;      // still shows the right pose, just still
 
     const ease = Easing.inOut(Easing.ease);
 
@@ -98,7 +110,7 @@ export function Pepe({ pose, motion = 'breathe', size }: Props) {
       cancelAnimation(squashY);
       cancelAnimation(tilt);
     };
-  }, [motion, pose]);
+  }, [motion, pose, reduceMotion]);
 
   const style = useAnimatedStyle(() => ({
     transform: [
