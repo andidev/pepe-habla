@@ -993,7 +993,8 @@ export default function Words() {
         renderItem={({ item }) => {
           const accuracy = item.p.seen === 0 ? 0 : Math.round((item.p.right / item.p.seen) * 100);
           const tint = accuracy >= 80 ? colour.cactus : accuracy >= 50 ? colour.marigold : colour.chile;
-          const speakable = canSpeak(item.word);
+          // No recordings ship, so this is a property of the device, not the word.
+          const speakable = canSpeak();
           return (
             <View style={{
               flexDirection: 'row', alignItems: 'center', gap: 12,
