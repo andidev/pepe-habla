@@ -6,6 +6,7 @@ import words4 from '../../../data/seed/words-4.json' with { type: 'json' };
 import words5 from '../../../data/seed/words-5.json' with { type: 'json' };
 import words6 from '../../../data/seed/words-6.json' with { type: 'json' };
 import words7 from '../../../data/seed/words-7.json' with { type: 'json' };
+import grammar1 from '../../../data/seed/grammar-1.json' with { type: 'json' };
 import manifest from '../assets/pepe/manifest.json' with { type: 'json' };
 
 /**
@@ -20,7 +21,16 @@ import manifest from '../assets/pepe/manifest.json' with { type: 'json' };
  * module touches nothing but JSON, so the seed validator can import it to
  * confirm every seed file actually reaches the app.
  */
-const SEED = [...words1, ...words2, ...words3, ...words4, ...words5, ...words6, ...words7] as Word[];
+const SEED = [
+  ...words1,
+  ...words2,
+  ...words3,
+  ...words4,
+  ...words5,
+  ...words6,
+  ...words7,
+  ...grammar1,
+] as Word[];
 
 export const WORDS: Word[] = SEED.map((w) => {
   const sprite = (manifest.vocab as Record<string, string>)[w.id];
