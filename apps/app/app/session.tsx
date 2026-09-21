@@ -7,7 +7,7 @@ import {
   optionSpoken, promptSpoken, reduce, roundScore, seedFromDate, selectDaily,
   sessionScore, startSession, todayISO,
   type Direction, type GlossLanguage, type Progress, type Question, type SessionState,
-  type Spoken, type Streak, type VocabDb,
+  type Spoken, type Streak, type Track, type VocabDb,
 } from '@pepe/core';
 import { FeedbackToast, type ToastKind } from '../components/FeedbackToast';
 import { OptionButton, type OptionState } from '../components/OptionButton';
@@ -37,6 +37,7 @@ export function buildRound(
   round: number,
   glossLang: GlossLanguage,
   exclude: ReadonlySet<string> = new Set(),
+  track: Track = 'words',
 ): Question[] {
   // Seeded by the day so a round is reproducible, and by the round number so a
   // second round is not the same ten words again.
@@ -45,7 +46,7 @@ export function buildRound(
   // separate rounds when ten or fewer words are due, because then every due
   // word is selected no matter what the rng says.
   const pool = exclude.size === 0 ? WORDS : WORDS.filter((w) => !exclude.has(w.id));
-  const selected = selectDaily(pool, progress, today, ROUND_SIZE, rng);
+  const selected = selectDaily(pool, progress, today, ROUND_SIZE, rng, track);
   return buildQuestions(selected, WORDS, rng, glossLang);
 }
 
