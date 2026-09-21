@@ -1,30 +1,41 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Image, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
-import Animated, { FadeInDown } from 'react-native-reanimated';
 import {
-  buildQuestions, bumpStreak, currentQuestion, mulberry32, optionMeaning, reduce,
-  roundScore, seedFromDate, selectDaily, sessionScore, startSession, todayISO,
-  type Progress, type Question, type SessionState, type Word,
+  buildQuestions, bumpStreak, currentQuestion, gloss, mulberry32, optionMeaning,
+  optionSpoken, promptSpoken, reduce, roundScore, seedFromDate, selectDaily,
+  sessionScore, startSession, todayISO,
+  type Direction, type GlossLanguage, type Progress, type Question, type SessionState,
+  type Spoken, type Streak, type VocabDb,
 } from '@pepe/core';
+import { FeedbackToast, type ToastKind } from '../components/FeedbackToast';
 import { OptionButton, type OptionState } from '../components/OptionButton';
-import { Screen } from '../components/Screen';
 import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
-import { cue, speak } from '../feedback';
-import { loadProgress, saveProgress, recordAnswers } from '../storage/progressStore';
+import { PromptWord } from '../components/PromptWord';
+import { Screen } from '../components/Screen';
+import { cue, effectsOn, isMuted, say, stopSpeaking, type Voice } from '../feedback';
+import { useLanguage } from '../i18n/language';
+import type { Strings } from '../i18n/strings';
+import { loadProgress, recordAnswers, saveProgress } from '../storage/progressStore';
 import { loadStreak, saveStreak } from '../storage/streakStore';
 import { VOCAB_ART, WORDS } from '../storage/vocabulary';
 import { colour, font, radius, space } from '../theme';
-import type { Streak, VocabDb } from '@pepe/core';
 
 const ROUND_SIZE = 10;
+/** How long "try again" stays down. */
+const WRONG_TOAST_MS = 2000;
+/** The pause on a right answer before moving on, unless the learner taps. */
+const ADVANCE_MS = 3000;
+/** The right/wrong chimes last about 0.4 s; the countdown starts after one. */
+const CUE_MS = 450;
 
 export function buildRound(
   progress: Record<string, Progress>,
   today: string,
   round: number,
+  glossLang: GlossLanguage,
   exclude: ReadonlySet<string> = new Set(),
 ): Question[] {
   // Seeded by the day so a round is reproducible, and by the round number so a
@@ -35,66 +46,76 @@ export function buildRound(
   // word is selected no matter what the rng says.
   const pool = exclude.size === 0 ? WORDS : WORDS.filter((w) => !exclude.has(w.id));
   const selected = selectDaily(pool, progress, today, ROUND_SIZE, rng);
-  return buildQuestions(selected, WORDS, rng);
+  return buildQuestions(selected, WORDS, rng, glossLang);
 }
 
-function Speaker({ onPress, big }: { onPress: () => void; big?: boolean }) {
-  const size = big ? 54 : 22;
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel="Escuchar la palabra"
-      style={{
-        width: big ? 190 : 48, height: big ? 130 : 48,
-        alignItems: 'center', justifyContent: 'center',
-        backgroundColor: big ? colour.marigold : colour.surface,
-        borderWidth: 2, borderColor: colour.ink,
-        borderRadius: big ? 22 : radius.pill,
-      }}
-    >
-      <Svg width={size} height={size} viewBox="0 0 24 24">
-        <Path d="M4 9v6h4l5 4V5L8 9z" fill={colour.ink} />
-        <Path d="M16.5 8.5a5 5 0 0 1 0 7" stroke={colour.ink} strokeWidth={2} strokeLinecap="round" fill="none" />
-      </Svg>
-    </Pressable>
-  );
-}
+const voiceFor = (s: Spoken, g: GlossLanguage): Voice => (s === 'es' ? 'es' : g);
 
-const TASK_LABEL: Record<string, string> = {
-  'es->en': 'ESCOGE LA TRADUCCIÓN',
-  'en->es': '¿CÓMO SE DICE?',
-  'picture->es': '¿QUÉ ES ESTO?',
-};
+const taskLabel = (t: Strings, d: Direction): string =>
+  d === 'es->en' ? t.session.task.recognise
+    : d === 'en->es' ? t.session.task.produce
+      : t.session.task.picture;
+
+interface Toast { kind: ToastKind; id: number; countdown: boolean }
 
 export default function Session() {
   const router = useRouter();
+  const { t, gloss: g } = useLanguage();
   const [state, setState] = useState<SessionState | null>(null);
   const [db, setDb] = useState<VocabDb | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [playing, setPlaying] = useState(false);
   const shownAt = useRef(Date.now());
   const counted = useRef<number>(0);        // rounds whose streak has been bumped
+  // Every tap bumps this. An audio chain that finds it changed has been
+  // interrupted and must not play its cue or start its countdown.
+  const seq = useRef(0);
+  const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const clearTimers = useCallback(() => {
+    for (const id of timers.current) clearTimeout(id);
+    timers.current = [];
+  }, []);
+  const later = useCallback((ms: number, fn: () => void) => {
+    timers.current.push(setTimeout(fn, ms));
+  }, []);
+
+  // Leaving the round must leave nothing talking or ticking behind it.
+  useEffect(() => () => { clearTimers(); stopSpeaking(); }, [clearTimers]);
 
   useEffect(() => {
     (async () => {
       const [loaded, s] = await Promise.all([loadProgress(), loadStreak()]);
       setDb(loaded);
       setStreak(s);
-      setState(startSession(buildRound(loaded.progress, todayISO(), 1)));
+      // The language cannot change mid-round: settings is not reachable from here.
+      setState(startSession(buildRound(loaded.progress, todayISO(), 1, g)));
     })();
   }, []);
 
   const question = state ? currentQuestion(state) : null;
+  const answering = state?.phase === 'asking' || state?.phase === 'repairing';
 
-  // Speak listening questions as soon as they appear, and reset the clock.
+  const playPrompt = useCallback((q: Question) => {
+    const spoken = promptSpoken(q.direction);
+    if (spoken === null) return;                     // a picture says nothing
+    const id = ++seq.current;
+    setPlaying(true);
+    void say(q.prompt, voiceFor(spoken, g)).then(() => {
+      if (seq.current === id) setPlaying(false);
+    });
+  }, [g]);
+
+  // A new question: reset the clock and say it once. Keyed on position, not
+  // just phase — a wrong tap leaves the phase and the word unchanged, and must
+  // not replay the prompt.
   useEffect(() => {
     shownAt.current = Date.now();
-    // Only while asking or repairing. The dep array alone is not enough:
-    // answering flips the phase without changing the word, which re-runs this
-    // effect. Repair must speak too — for a listening question the prompt is
-    // the audio, so skipping it here left repair silent.
-    if (state?.phase !== 'asking' && state?.phase !== 'repairing') return;
-  }, [question?.word.id, state?.phase]);
+    if (!question || !answering) return;
+    setToast(null);
+    playPrompt(question);
+  }, [question?.word.id, state?.phase, state?.index, state?.repairIndex, state?.round]);
 
   // How many of state.results have reached storage. Counting answers rather
   // than rounds means a mid-round write and the summary write compose instead
@@ -147,10 +168,13 @@ export default function Session() {
     })();
   }, [state?.phase, state?.round]);
 
-  const meaning = useMemo(() => {
-    if (!state?.picked || !question) return null;
-    return optionMeaning(question.direction, state.picked, WORDS);
-  }, [state?.picked, question]);
+  const advance = useCallback(() => {
+    clearTimers();
+    seq.current += 1;
+    stopSpeaking();
+    setToast(null);
+    setState((s) => (s ? reduce(s, { type: 'next' }) : s));
+  }, [clearTimers]);
 
   if (!state) {
     return <View style={{ flex: 1, backgroundColor: colour.ground }} />;
@@ -167,7 +191,7 @@ export default function Session() {
       // Everything already answered this session is out, so another round is
       // genuinely new material rather than the same ten words reshuffled.
       const seen = new Set(state.results.map((r) => r.wordId));
-      const questions = buildRound(current.progress, todayISO(), state.round + 1, seen);
+      const questions = buildRound(current.progress, todayISO(), state.round + 1, g, seen);
       if (questions.length === 0) return;             // nothing left today
       setState(reduce(state, { type: 'anotherRound', questions }));
     };
@@ -177,42 +201,42 @@ export default function Session() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 }}>
           <Pepe pose="excited" motion="celebrate" size={168} />
           <Text style={{ fontFamily: font.displayHeavy, fontSize: 34, color: colour.ink, marginTop: space.sm }}>
-            ¡Bien hecho!
+            {t.summary.title}
           </Text>
           <Text style={{ fontFamily: font.body, fontSize: 16, color: colour.muted }}>
-            {round.right} de {round.total} correctas
+            {t.summary.firstTry(round.right, round.total)}
           </Text>
           {state.round > 1 && (
             <Text style={{ fontFamily: font.body, fontSize: 14, color: colour.muted, marginTop: 2 }}>
-              {session.right} de {session.total} en toda la sesión
+              {t.summary.wholeSession(session.right, session.total)}
             </Text>
           )}
 
           {missed.length > 0 && (
             <View style={{ width: '100%', marginTop: space.xl, backgroundColor: colour.surface, borderWidth: 2, borderColor: colour.ink, borderRadius: radius.card, padding: 16 }}>
               <Text style={{ fontFamily: font.bodyHeavy, fontSize: 12, color: colour.muted, letterSpacing: 1, marginBottom: 9 }}>
-                PARA REPASAR
+                {t.summary.toReview}
               </Text>
               {missed.map((w) => (
                 <View key={w.id} style={{ flexDirection: 'row', alignItems: 'baseline', gap: 9, marginBottom: 4 }}>
                   <Text style={{ fontFamily: font.display, fontSize: 19, color: colour.ink }}>{w.es}</Text>
-                  <Text style={{ fontFamily: font.body, fontSize: 15, color: colour.muted }}>{w.en}</Text>
+                  <Text style={{ fontFamily: font.body, fontSize: 15, color: colour.muted }}>{gloss(w, g)}</Text>
                 </View>
               ))}
               <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, marginTop: 5 }}>
-                Vuelven mañana.
+                {t.summary.backTomorrow}
               </Text>
             </View>
           )}
 
-          <PressableCard depth={5} face={colour.cactus} onPress={another} style={{ width: '100%', marginTop: space.xl }}>
+          <PressableCard depth={5} face={colour.cactus} onPress={another} label={t.summary.anotherRound} style={{ width: '100%', marginTop: space.xl }}>
             <View style={{ height: 60, alignItems: 'center', justifyContent: 'center' }}>
-              <Text style={{ fontFamily: font.displayHeavy, fontSize: 22, color: colour.surface }}>¿Otra ronda?</Text>
+              <Text style={{ fontFamily: font.displayHeavy, fontSize: 22, color: colour.surface }}>{t.summary.anotherRound}</Text>
             </View>
           </PressableCard>
 
-          <Pressable onPress={() => router.back()} style={{ height: 52, width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
-            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>Terminar por hoy</Text>
+          <Pressable onPress={() => router.back()} accessibilityRole="button" style={{ height: 52, width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
+            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>{t.summary.doneForToday}</Text>
           </Pressable>
         </View>
       </Screen>
@@ -223,22 +247,38 @@ export default function Session() {
     return <View style={{ flex: 1, backgroundColor: colour.ground }} />;
   }
 
-  const answering = state.phase === 'asking' || state.phase === 'repairing';
-  const correct = state.picked === question.answer;
+  const onAnswer = (option: string) => {
+    if (!answering || state.tried.includes(option)) return;
+    const id = ++seq.current;
+    clearTimers();
+    setPlaying(false);
 
-  const optionState = (label: string): OptionState => {
-    if (answering) return 'idle';
-    if (label === question.answer) return 'correct';
-    if (label === state.picked) return 'wrong';
-    return 'dimmed';
+    const hit = option === question.answer;
+    setState(reduce(state, { type: 'answer', option, ms: Date.now() - shownAt.current }));
+
+    const toastId = Date.now();
+    setToast({ kind: hit ? 'good' : 'bad', id: toastId, countdown: false });
+    if (!hit) {
+      later(WRONG_TOAST_MS, () => setToast((x) => (x?.id === toastId ? null : x)));
+    }
+
+    // Word first, then the verdict — hearing the word is the lesson.
+    void say(option, voiceFor(optionSpoken(question.direction), g)).then(() => {
+      if (seq.current !== id) return;               // interrupted by a newer tap
+      cue(hit ? 'correct' : 'wrong');
+      if (!hit) return;
+      later(effectsOn() && !isMuted() ? CUE_MS : 0, () => {
+        setToast((x) => (x?.id === toastId ? { ...x, countdown: true } : x));
+        later(ADVANCE_MS, advance);
+      });
+    });
   };
 
-  const onAnswer = (option: string) => {
-    const ms = Date.now() - shownAt.current;
-    const hit = option === question.answer;
-    cue(hit ? 'correct' : 'wrong');
-    if (!hit) speak(question.word);          // hear the right word after a miss
-    setState(reduce(state, { type: 'answer', option, ms }));
+  const optionState = (label: string): OptionState => {
+    const tried = state.tried.includes(label);
+    if (answering) return tried ? 'wrong' : 'idle';
+    if (label === question.answer) return 'correct';
+    return tried ? 'wrong-faded' : 'dimmed';
   };
 
   const inRepair = state.phase === 'repairing' || state.phase === 'repair-feedback';
@@ -252,7 +292,7 @@ export default function Session() {
   return (
     <Screen edges={['top', 'bottom']}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: space.xl, paddingTop: space.md }}>
-        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Salir de la ronda" style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+        <Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t.session.exit} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}>
           <Svg width={19} height={19} viewBox="0 0 24 24">
             <Path d="M5 5l14 14M19 5L5 19" stroke={colour.muted} strokeWidth={2.6} strokeLinecap="round" />
           </Svg>
@@ -267,9 +307,7 @@ export default function Session() {
 
       <View style={{ flex: 1, paddingHorizontal: space.xl }}>
         <Text style={{ fontFamily: font.bodyHeavy, fontSize: 13, color: colour.muted, letterSpacing: 1, marginTop: 22, marginBottom: space.md }}>
-          {state.phase === 'repairing' || state.phase === 'repair-feedback'
-            ? 'OTRA VEZ, SIN PRISA'
-            : TASK_LABEL[question.direction]}
+          {inRepair ? t.session.task.repair : taskLabel(t, question.direction)}
         </Text>
 
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -278,54 +316,58 @@ export default function Session() {
               <Image source={VOCAB_ART[question.promptImage]} style={{ width: 190, height: 190 }} resizeMode="contain" />
             </View>
           ) : (
-            <View style={{ alignItems: 'center', gap: 14 }}>
-              <Text style={{ fontFamily: font.displayHeavy, fontSize: 44, color: colour.ink, textAlign: 'center' }}>
-                {question.prompt}
-              </Text>
-              {question.direction === 'es->en' && <Speaker onPress={() => speak(question.word)} />}
-            </View>
+            <PromptWord
+              text={question.prompt}
+              playing={playing}
+              onPress={() => playPrompt(question)}
+              label={t.session.listenAgain}
+            />
           )}
         </View>
 
-        <View style={{ gap: 10, paddingBottom: space.md }}>
-          {question.options.map((option) => (
-            <OptionButton
-              key={option}
-              label={option}
-              state={optionState(option)}
-              disabled={!answering}
-              onPress={() => onAnswer(option)}
-            />
-          ))}
+        <View style={{ gap: 10 }}>
+          {question.options.map((option) => {
+            const tried = state.tried.includes(option);
+            return (
+              <OptionButton
+                key={option}
+                label={option}
+                state={optionState(option)}
+                disabled={!answering || tried}
+                detail={tried ? optionMeaning(question.direction, option, WORDS, g) ?? undefined : undefined}
+                onPress={() => onAnswer(option)}
+              />
+            );
+          })}
+        </View>
+
+        {/* Reserved whether or not the hint shows, so nothing above it moves. */}
+        <View style={{ height: 40, alignItems: 'center', justifyContent: 'center' }}>
+          {!answering && (
+            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 13, color: colour.muted }}>
+              {t.session.tapToContinue}
+            </Text>
+          )}
         </View>
       </View>
 
+      {toast !== null && (
+        <FeedbackToast
+          key={toast.id}
+          kind={toast.kind}
+          title={toast.kind === 'good' ? t.session.correct : t.session.tryAgain}
+          subtitle={toast.kind === 'good' ? `${question.word.es} = ${gloss(question.word, g)}` : undefined}
+          countdownMs={toast.countdown ? ADVANCE_MS : undefined}
+        />
+      )}
+
       {!answering && (
-        <Animated.View
-          entering={FadeInDown.duration(260)}
-          style={{ borderTopWidth: 2, borderTopColor: colour.ink, backgroundColor: correct ? colour.cactus : colour.chile }}
-        >
-          <View style={{ padding: space.lg }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-              <Pepe pose={correct ? 'happy' : 'sad'} motion={correct ? 'hop' : 'shake'} size={72} />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontFamily: font.display, fontSize: correct ? 22 : 20, color: colour.surface }}>
-                  {correct ? '¡Eso es!' : `La respuesta es ${question.answer}`}
-                </Text>
-                {!correct && meaning && (
-                  <Text style={{ fontFamily: font.body, fontSize: 14, color: colour.surface, opacity: 0.92, marginTop: 2 }}>
-                    Escogiste {state.picked}, que significa {meaning}.
-                  </Text>
-                )}
-              </View>
-            </View>
-            <PressableCard onPress={() => { cue('tap'); setState(reduce(state, { type: 'next' })); }} style={{ marginTop: space.md }}>
-              <View style={{ height: 54, alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontFamily: font.display, fontSize: 19, color: colour.ink }}>Siguiente</Text>
-              </View>
-            </PressableCard>
-          </View>
-        </Animated.View>
+        <Pressable
+          onPress={advance}
+          accessibilityRole="button"
+          accessibilityLabel={t.session.tapToContinue}
+          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, zIndex: 30 }}
+        />
       )}
     </Screen>
   );
