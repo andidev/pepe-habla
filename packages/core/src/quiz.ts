@@ -109,6 +109,11 @@ export function buildQuestions(
  * A wrong answer is a chance to learn two words rather than none: the correct
  * one, and the one you reached for instead. Every distractor is a real word
  * from the learner's own vocabulary, so the gloss is already available.
+ *
+ * `pool` must hold cards from a single track. The lookup is first-match-on-
+ * text, and two tracks may legitimately share a rendered text (e.g. `como`
+ * as "as, like" in words and "I eat" in grammar) -- a mixed-track pool can
+ * silently resolve to the wrong card's meaning.
  */
 export function optionMeaning(
   direction: Direction,

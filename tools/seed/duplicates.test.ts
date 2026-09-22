@@ -99,4 +99,17 @@ describe('collisions', () => {
     ];
     assert.deepEqual(collisions(words, 'es'), []);
   });
+
+  test('two collisions in one track are reported normalised and in text order', () => {
+    const words = [
+      card('zebra-1', 'words', 'la cebra', '  Zebra ', 'sebran'),
+      card('zebra-2', 'words', 'el cebro', 'zebra', 'sebrahanen'),
+      card('apple-1', 'words', 'la manzana', 'Apple', 'äpplet'),
+      card('apple-2', 'words', 'el manzano', 'apple  ', 'äppelträdet'),
+    ];
+    assert.deepEqual(collisions(words, 'en'), [
+      { track: 'words', text: 'apple', ids: ['apple-1', 'apple-2'] },
+      { track: 'words', text: 'zebra', ids: ['zebra-1', 'zebra-2'] },
+    ]);
+  });
 });

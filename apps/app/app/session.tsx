@@ -302,6 +302,13 @@ export default function Session() {
     return <View style={{ flex: 1, backgroundColor: colour.ground }} />;
   }
 
+  // optionMeaning does a first-match-on-text lookup, so the pool must be a
+  // single track -- otherwise a cross-track homograph like `como` would
+  // resolve to the other track's meaning. Scoped to the question's own word
+  // (not the screen's `track` state) so a replayed repair question still
+  // resolves against the track it belongs to.
+  const trackWords = WORDS.filter((w) => w.track === question.word.track);
+
   const onAnswer = (option: string) => {
     if (!answering || state.tried.includes(option)) return;
     // `answering`/`state.tried` above are only as fresh as the last render,
@@ -399,7 +406,7 @@ export default function Session() {
                 label={option}
                 state={optionState(option)}
                 disabled={!answering || tried}
-                detail={tried ? optionMeaning(question.direction, option, WORDS, g) ?? undefined : undefined}
+                detail={tried ? optionMeaning(question.direction, option, trackWords, g) ?? undefined : undefined}
                 onPress={() => onAnswer(option)}
               />
             );
