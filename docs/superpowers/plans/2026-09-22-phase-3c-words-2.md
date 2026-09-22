@@ -145,22 +145,38 @@ import { fileStore, projectRoot } from './tools/store/fileStore.ts';
 const words = (await fileStore(projectRoot).loadWords()).filter((w) => w.track === 'words');
 const ids = process.argv.slice(2);
 
+// buildQuestions decides directions per BATCH: round(n * 0.4) of them are
+// produce (gloss->es). With n = 1 that is 0, so a one-card call can only ever
+// show es->en -- half of real practice, and the half whose options are Swedish.
+// Pad the batch so the target can land in either bucket, then keep only the
+// target's question.
+const pad = words.filter((w) => !ids.includes(w.id)).slice(0, 9);
+
 for (const id of ids) {
   const target = words.find((w) => w.id === id);
   if (!target) { console.log(`${id}: NOT FOUND`); continue; }
   const seen = new Map<string, number>();
-  for (let seed = 1; seed <= 200; seed++) {
-    const q = buildQuestions([target], words, mulberry32(seed), 'sv')[0];
+  const dirs = new Map<string, number>();
+  for (let seed = 1; seed <= 300; seed++) {
+    const q = buildQuestions([target, ...pad], words, mulberry32(seed), 'sv')
+      .find((x) => x.word.id === id);
     if (!q) continue;
+    dirs.set(q.direction, (dirs.get(q.direction) ?? 0) + 1);
     const key = `${q.direction}  ${q.options.join(' / ')}`;
     seen.set(key, (seen.get(key) ?? 0) + 1);
   }
-  console.log(`\n### ${id} (${target.es} = ${target.sv}, pos ${target.pos})`);
+  console.log(`\n### ${id} (${target.es} = ${target.sv}, pos ${target.pos})  directions: ${[...dirs].map(([d, n]) => `${d} ${n}`).join(', ')}`);
   for (const [k, n] of [...seen].sort((a, b) => b[1] - a[1]).slice(0, 6)) {
     console.log(`  ${n.toString().padStart(3)}x  ${k}`);
   }
 }
 ```
+
+**Both directions must appear** in the `directions:` line — roughly 60% `es->en`, 40% `en->es`.
+If you see only `es->en`, the padding is not working and you are testing half of practice. The
+`en->es` direction is the one whose four options are *Spanish* strings, so it is where a
+near-identical pair like `la sal` / `la sala` or `freír` / `reír` would bite.
+
 
 Run it over a sample of the cards you added, at least eight, mixing every `pos` you used:
 
