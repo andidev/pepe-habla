@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileStore, projectRoot } from '../store/fileStore.ts';
 import { GRAMMAR_THEMES, LADDERS, THEMES, TRACKS, isTheme, levelsIn } from '@pepe/core';
 import type { Word } from '@pepe/core';
+import { collisions, duplicates, norm } from './duplicates.ts';
 
 // A non-literal specifier keeps apps/app out of the root tsc program (it has its
 // own tsconfig); tsc -p apps/app already enforces Greeting.sv at the type level.
@@ -14,7 +15,6 @@ const { GREETINGS } = (await import(greetingsPath)) as {
 };
 
 const words = await fileStore(projectRoot).loadWords();
-const norm = (s: string) => s.trim().toLowerCase();
 
 // A word's level and its filename must agree, or the seed becomes impossible
 // to reason about once 3c starts adding levels one PR at a time. `loadWords()`
@@ -35,13 +35,6 @@ for (const file of (await readdir(seedDir)).filter((f) => f.endsWith('.json'))) 
   }
 }
 
-function duplicates(values: string[]): string[] {
-  const seen = new Set<string>();
-  const dup = new Set<string>();
-  for (const v of values.map(norm)) (seen.has(v) ? dup : seen).add(v);
-  return [...dup];
-}
-
 describe('seed words', () => {
   test('every word has a Swedish gloss', () => {
     const missing = words.filter((w) => typeof w.sv !== 'string' || w.sv.trim() === '');
@@ -50,11 +43,25 @@ describe('seed words', () => {
 
   // Glosses are multiple-choice options. Two words sharing one would make a
   // question with two right answers that the app marks as one right, one wrong.
+  // Scoped by track because a question's distractors come from one track only,
+  // so two tracks may share a text: `como` is "as, like" in words and "I eat"
+  // in grammar. See tools/seed/duplicates.ts.
   for (const key of ['es', 'en', 'sv'] as const) {
-    test(`no two words share a ${key} text`, () => {
-      assert.deepEqual(duplicates(words.map((w) => w[key])), []);
+    test(`no two words in one track share a ${key} text`, () => {
+      assert.deepEqual(collisions(words, key), []);
     });
   }
+
+  // The real seed is clean, so it would pass whether or not the check is wired
+  // up at all. This proves the wiring by running it over the real seed plus one
+  // planted card that collides with a card already in it.
+  test('a planted same-track collision is caught in the real seed', () => {
+    const first = words[0]!;
+    const planted = { ...first, id: `${first.id}-planted` };
+    assert.deepEqual(collisions([...words, planted], 'es'), [
+      { track: first.track, text: norm(first.es), ids: [first.id, planted.id] },
+    ]);
+  });
 
   test('every card has a known track', () => {
     const bad = words.filter((w) => w.track !== 'words' && w.track !== 'grammar');
