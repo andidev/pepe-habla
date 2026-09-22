@@ -12,4 +12,5 @@ export * from './select.ts';
 export * from './quiz.ts';
 export * from './session.ts';
 export * from './streak.ts';
+export * from './reminders.ts';
 export * from './stats.ts';
