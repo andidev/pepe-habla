@@ -114,7 +114,7 @@
 {"id":"nada","es":"nada","en":"nothing","sv":"ingenting","pos":"other","track":"words","level":1,"themes":["conectores"]},
 {"id":"todo","es":"todo","en":"all, everything","sv":"allt","pos":"adjective","track":"words","level":1,"themes":["conectores"]},
 {"id":"otro","es":"otro","en":"another","sv":"en annan","pos":"adjective","track":"words","level":1,"themes":["conectores"]},
-{"id":"cada","es":"cada","en":"each","sv":"varje","pos":"adjective","track":"words","level":1,"themes":["conectores"]},
+{"id":"cada","es":"cada","en":"each","sv":"varje","pos":"other","track":"words","level":1,"themes":["conectores"]},
 {"id":"ninguno","es":"ninguno","en":"none, not a single one","sv":"inte en enda","pos":"other","track":"words","level":1,"themes":["conectores"],"note":"Pairs with nadie and nada. Before a masculine noun it shortens to ningún: ningún problema, no problem at all. Before a feminine one it is ninguna: ninguna idea."},
 {"id":"la-persona","es":"la persona","en":"the person","sv":"personen","pos":"noun","track":"words","level":1,"themes":["ciudad"]},
 {"id":"el-nino","es":"el niño","en":"the boy","sv":"pojken","pos":"noun","track":"words","level":1,"themes":["familia"]},
