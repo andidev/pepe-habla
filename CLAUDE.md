@@ -22,8 +22,8 @@ logic in `packages/core`.
 - Randomness is injected as an `Rng` parameter; core never calls `Math.random()`.
 - Relative imports in core carry explicit `.ts` extensions (Node 24 runs TS
   directly — there is no build step).
-- Only `apps/app/components/Screen.tsx` and `apps/app/feedback.ts` may branch
-  on platform or touch device APIs.
+- Only `apps/app/components/Screen.tsx`, `apps/app/feedback.ts` and
+  `apps/app/notifications.ts` may branch on platform or touch device APIs.
 - Palette only through `apps/app/theme.ts`. 2px ink borders, hard offset
   shadows, never blurred. Touch targets ≥ 44px. Interface copy goes through
   `apps/app/i18n/strings.ts`.
