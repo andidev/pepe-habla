@@ -1,6 +1,6 @@
 import { AppState, Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { planReminders, todayISO, type Reminder, type VocabDb } from '@pepe/core';
+import { planReminders, todayISO, type AppLanguage, type Reminder, type VocabDb } from '@pepe/core';
 import { STRINGS, type Strings } from './i18n/strings';
 import { loadLanguage } from './i18n/language';
 import { loadProgress } from './storage/progressStore';
@@ -94,13 +94,19 @@ let queue: Promise<void> = Promise.resolve();
  * Called after a round, after any settings change, and on every foreground.
  * Serialised, because a finished round and a foreground can land in the same
  * tick and two passes would cancel each other's work half-queued.
+ *
+ * `language` overrides the stored language. `setLanguage` writes to storage
+ * without awaiting, so a refresh that reads storage right after can still see
+ * the language the learner just left; passing the new one explicitly avoids
+ * that race.
  */
-export function refreshReminders(): Promise<void> {
-  queue = queue.then(rebuild, rebuild);
+export function refreshReminders(language?: AppLanguage): Promise<void> {
+  const run = () => rebuild(language);
+  queue = queue.then(run, run);
   return queue;
 }
 
-async function rebuild(): Promise<void> {
+async function rebuild(language?: AppLanguage): Promise<void> {
   if (!supported) return;
   try {
     const settings = await loadReminderSettings();
@@ -113,10 +119,10 @@ async function rebuild(): Promise<void> {
     // own switch still says on.
     if ((await permissionState()) !== 'granted') return;
 
-    const [db, streak, language] = await Promise.all([
-      loadProgress(), loadStreak(), loadLanguage(),
+    const [db, streak, resolvedLanguage] = await Promise.all([
+      loadProgress(), loadStreak(), language ? Promise.resolve(language) : loadLanguage(),
     ]);
-    const t = STRINGS[language];
+    const t = STRINGS[resolvedLanguage];
 
     // One clock reading for the whole pass, so the date and the minute agree.
     const now = new Date();

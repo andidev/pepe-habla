@@ -1,12 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
+import {
+  defaultReminderSettings, REMINDER_TIMES, reminderTimeLabel, type ReminderSettings,
+} from '@pepe/core';
 import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
 import { Screen } from '../components/Screen';
 import { cue, effectsOn, isMuted, saveEffects, saveMuted } from '../feedback';
 import { useLanguage } from '../i18n/language';
 import { LANGUAGE_CHOICES } from '../i18n/strings';
+import {
+  askPermission, openSystemSettings, permissionState, refreshReminders,
+  type PermissionState,
+} from '../notifications';
+import { loadReminderSettings, saveReminderSettings } from '../storage/reminderStore';
 import { WORDS } from '../storage/vocabulary';
 import { colour, font, outline, radius, space } from '../theme';
 
@@ -19,6 +27,36 @@ export default function Settings() {
   const { t, language, setLanguage } = useLanguage();
   const [soundOn, setSoundOn] = useState(!isMuted());
   const [effects, setEffects] = useState(effectsOn());
+  const [reminder, setReminder] = useState<ReminderSettings>(defaultReminderSettings());
+  const [permission, setPermission] = useState<PermissionState>('unsupported');
+
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const [stored, state] = await Promise.all([loadReminderSettings(), permissionState()]);
+      if (!alive) return;
+      setReminder(stored);
+      setPermission(state);
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  const applyReminder = async (next: ReminderSettings) => {
+    setReminder(next);
+    await saveReminderSettings(next);
+    await refreshReminders();
+  };
+
+  const toggleReminder = async (on: boolean) => {
+    if (!on) { await applyReminder({ ...reminder, enabled: false }); return; }
+    // Asking here, and nowhere else, is the whole permission strategy: this is
+    // the only moment the learner has said they want to be reminded.
+    const state = permission === 'granted' ? 'granted' : await askPermission();
+    setPermission(state);
+    if (state !== 'granted') { setReminder({ ...reminder, enabled: false }); return; }
+    cue('tap');
+    await applyReminder({ ...reminder, enabled: true });
+  };
 
   return (
     <Screen edges={['top', 'bottom']}>
@@ -46,7 +84,7 @@ export default function Settings() {
               return (
                 <Pressable
                   key={choice.id}
-                  onPress={() => { cue('tap'); setLanguage(choice.id); }}
+                  onPress={() => { cue('tap'); setLanguage(choice.id); void refreshReminders(choice.id); }}
                   accessibilityRole="radio"
                   accessibilityState={{ checked: on }}
                   accessibilityLabel={`${choice.name}. ${choice.detail}`}
@@ -116,6 +154,89 @@ export default function Settings() {
             </View>
           )}
         </View>
+
+        {/* Hidden entirely on web, which has no notification queue. */}
+        {permission !== 'unsupported' && (
+          <View style={card}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontFamily: font.display, fontSize: 17, color: colour.ink }}>
+                  {t.settings.reminder}
+                </Text>
+                <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, marginTop: 2 }}>
+                  {t.settings.reminderHint}
+                </Text>
+              </View>
+              <Switch
+                value={reminder.enabled}
+                onValueChange={(on) => { void toggleReminder(on); }}
+                disabled={permission === 'denied'}
+                accessibilityLabel={t.settings.reminder}
+                trackColor={{ false: colour.muted, true: colour.cactus }}
+              />
+            </View>
+
+            {/* A learner who declined is not in an error state. No red, no
+                warning, and nothing about it anywhere else in the app -- just
+                the one door back, which the OS is the only one who can open. */}
+            {permission === 'denied' && (
+              <View style={{ marginTop: space.md, paddingTop: space.md, borderTopWidth: 1.5, borderTopColor: colour.ground }}>
+                <Text style={{ fontFamily: font.body, fontSize: 13, color: colour.muted, lineHeight: 19 }}>
+                  {t.settings.reminderDenied}
+                </Text>
+                <Pressable
+                  onPress={() => { cue('tap'); void openSystemSettings(); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.settings.reminderOpenSettings}
+                  style={{ minHeight: 44, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontFamily: font.bodyHeavy, fontSize: 15, color: colour.cactus }}>
+                    {t.settings.reminderOpenSettings}
+                  </Text>
+                </Pressable>
+              </View>
+            )}
+
+            {reminder.enabled && permission === 'granted' && (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: space.sm, paddingVertical: space.sm, paddingRight: space.lg }}
+                style={{ marginTop: space.md, paddingTop: space.md, borderTopWidth: 1.5, borderTopColor: colour.ground }}
+              >
+                {REMINDER_TIMES.map((time) => {
+                  const on = time.hour === reminder.hour && time.minute === reminder.minute;
+                  const label = reminderTimeLabel(time);
+                  return (
+                    <Pressable
+                      key={label}
+                      onPress={() => {
+                        cue('tap');
+                        void applyReminder({ ...reminder, hour: time.hour, minute: time.minute });
+                      }}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: on }}
+                      accessibilityLabel={label}
+                      style={{
+                        minHeight: 44, minWidth: 72, paddingHorizontal: space.md,
+                        alignItems: 'center', justifyContent: 'center',
+                        borderRadius: radius.pill, ...outline,
+                        backgroundColor: on ? colour.cactus : colour.surface,
+                      }}
+                    >
+                      <Text style={{
+                        fontFamily: font.bodyHeavy, fontSize: 15,
+                        color: on ? colour.surface : colour.ink,
+                      }}>
+                        {label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        )}
 
         <View style={card}>
           <Text style={{ fontFamily: font.display, fontSize: 17, color: colour.ink }}>Pepe Habla</Text>
