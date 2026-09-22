@@ -27,9 +27,8 @@ What this buys: `como` can be "as, like" in words and "I eat" in grammar. Gramma
 - `npm test` globs `'tools/**/*.test.ts'`, so a new test file under `tools/` is picked up with no script change. **Never edit `package.json` scripts.**
 - **Never run `expo run:ios`, `expo run:android` or `expo prebuild`.** Nothing in this plan needs the app to run.
 - **Stage files by name. Never `git add -A`** — other sessions commit in this working directory.
-- Both gates must stay green at every commit: `npm test` (206 tests at the start of this plan) and `npm run typecheck`.
-- End every commit message with exactly:
-  `Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>`
+- Both gates must stay green at every commit: `npm test` (258 tests at the start of this plan — main gained tests from another session after this plan was drafted; what matters is the delta, not the absolute) and `npm run typecheck`.
+- End every commit message with a `Co-Authored-By:` trailer naming **the model that actually wrote the commit** — `Co-Authored-By: Claude Sonnet 5 <noreply@anthropic.com>` if you are Sonnet, `Claude Opus 5` if you are Opus, and so on. Follow your own session's attribution instruction. This repo's history already mixes them (`b7a92b9` is Sonnet, `d7be718` is Opus), because attribution names the writer. Every commit needs the trailer; none may name a model that did not write it.
 
 ## File Structure
 
@@ -233,7 +232,7 @@ Expected: PASS, 10 tests (1 for `norm`, 2 for `duplicates`, 7 for `collisions`).
 Then run the whole suite and the typechecker — nothing else should have moved:
 
 Run: `npm test`
-Expected: PASS, 216 tests (206 before, 10 added).
+Expected: PASS, 268 tests (258 before, 10 added).
 
 Run: `npm run typecheck`
 Expected: exit 0, no output past the two `tsc` lines.
@@ -263,7 +262,7 @@ The seed has no collisions today, so it passes under either rule. Fixtures
 are the only thing that can prove a relaxation, so the check moves into a
 pure module with its own.
 
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Co-Authored-By: <your model, e.g. Claude Sonnet 5> <noreply@anthropic.com>
 MSG
 )"
 ```
@@ -353,7 +352,7 @@ Run: `node --test tools/seed/seed.test.ts`
 Expected: PASS. One more test than before (15, up from 14), and the three renamed tests now read `no two words in one track share a … text`.
 
 Run: `npm test`
-Expected: PASS, 217 tests.
+Expected: PASS, 269 tests.
 
 Run: `npm run typecheck`
 Expected: exit 0. If `tsc` reports `duplicates` declared but never read, the greetings test at the bottom of the file was changed by mistake — it must still call `duplicates(GREETINGS.map((g) => g.es))`, because greetings are a flat list with no track.
@@ -377,7 +376,7 @@ error it always was, for Spanish and for both glosses.
 Greetings keep the flat check — they are a list, not cards, and have no
 track to scope by.
 
-Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+Co-Authored-By: <your model, e.g. Claude Sonnet 5> <noreply@anthropic.com>
 MSG
 )"
 ```
