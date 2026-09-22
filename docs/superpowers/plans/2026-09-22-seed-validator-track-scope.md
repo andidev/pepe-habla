@@ -318,7 +318,7 @@ Three edits to `tools/seed/seed.test.ts`:
 import { collisions, duplicates, norm } from './duplicates.ts';
 ```
 
-**(b)** Delete the local `norm` (line 17) and the whole local `duplicates` function (lines 38-43, including its surrounding blank lines). Both now come from the import. `norm` is also used by the `misfiled` block above — leave that usage alone; it resolves to the import.
+**(b)** Delete the local `norm` (line 17) and the whole local `duplicates` function (lines 38-43, including its surrounding blank lines). Both now come from the import. In the file as it stands, `norm` has exactly one caller — `values.map(norm)` inside that local `duplicates` — so deleting both leaves the imported `norm` used only by the new planted-collision test in Step 1. That is a real use, so the import is not dead; if `tsc` says it is, the Step 1 test did not get added.
 
 **(c)** Replace the three-test loop:
 
