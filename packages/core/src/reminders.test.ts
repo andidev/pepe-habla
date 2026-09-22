@@ -1,7 +1,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  defaultReminderSettings, REMINDER_TIMES, reminderSlots, reminderTimeLabel,
+  defaultReminderSettings, REMINDER_TIMES, reminderSlots, reminderTimeLabel, reminderTone,
 } from './reminders.ts';
 
 const at8 = { enabled: true, hour: 8, minute: 0 };
@@ -93,5 +93,41 @@ describe('reminderSlots', () => {
       settings: at8, streak: noStreak, today: '2026-09-30', nowMinutes: 7 * 60, horizon: 2,
     });
     assert.deepEqual(slots.map((s) => s.date), ['2026-09-30', '2026-10-01']);
+  });
+});
+
+describe('reminderTone', () => {
+  const live = { days: 9, lastDate: '2026-09-20' };   // a round yesterday
+
+  test('due words and a live streak: the streak is the reason to get up', () => {
+    assert.deepEqual(reminderTone(12, live, '2026-09-21'),
+      { kind: 'streak', due: 12, streak: 9 });
+  });
+
+  test('due words and no streak: Pepe asks instead of promising', () => {
+    assert.deepEqual(reminderTone(12, { days: 0, lastDate: null }, '2026-09-21'),
+      { kind: 'due', due: 12 });
+  });
+
+  test('nothing due but a live streak', () => {
+    assert.deepEqual(reminderTone(0, live, '2026-09-21'),
+      { kind: 'streakOnly', streak: 9 });
+  });
+
+  test('nothing due and no streak', () => {
+    assert.deepEqual(reminderTone(0, { days: 0, lastDate: null }, '2026-09-21'),
+      { kind: 'fresh' });
+  });
+
+  test('a streak is still alive the morning after the last round', () => {
+    assert.equal(reminderTone(5, live, '2026-09-21').kind, 'streak');
+  });
+
+  test('and dead the morning after that — never promise a streak already lost', () => {
+    assert.equal(reminderTone(5, live, '2026-09-22').kind, 'due');
+  });
+
+  test('a streak of zero days is no streak, whatever the date says', () => {
+    assert.equal(reminderTone(5, { days: 0, lastDate: '2026-09-20' }, '2026-09-21').kind, 'due');
   });
 });

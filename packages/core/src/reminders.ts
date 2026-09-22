@@ -8,7 +8,7 @@
  * Nothing here constructs a Date. `today` and `nowMinutes` come in as
  * parameters, which is what lets a test pin a morning down to the minute.
  */
-import { addDays } from './dates.ts';
+import { addDays, daysBetween } from './dates.ts';
 import type { Streak } from './streak.ts';
 
 export interface ReminderSettings {
@@ -90,4 +90,34 @@ export function reminderSlots(input: {
   }
 
   return slots;
+}
+
+/**
+ * What the body says, as data rather than a string.
+ *
+ * The app turns this into one of three languages; core stays out of copy.
+ */
+export type ReminderTone =
+  | { kind: 'streak'; due: number; streak: number }
+  | { kind: 'due'; due: number }
+  | { kind: 'streakOnly'; streak: number }
+  | { kind: 'fresh' };
+
+/**
+ * A streak may only be promised on the morning it is still winnable.
+ *
+ * This falls out of `daysBetween` rather than being special-cased: on the
+ * morning after a missed day the gap is already 2, and the streak really is
+ * broken. Promising a learner a streak they have lost is the one thing that
+ * would make the number worthless.
+ */
+export function reminderTone(due: number, streak: Streak, date: string): ReminderTone {
+  const alive = streak.days > 0
+    && streak.lastDate !== null
+    && daysBetween(streak.lastDate, date) <= 1;
+
+  if (due > 0) {
+    return alive ? { kind: 'streak', due, streak: streak.days } : { kind: 'due', due };
+  }
+  return alive ? { kind: 'streakOnly', streak: streak.days } : { kind: 'fresh' };
 }
