@@ -77,6 +77,22 @@ export async function openSystemSettings(): Promise<void> {
   }
 }
 
+/**
+ * Watch for the grant changing outside the app.
+ *
+ * The one route out of the denied state leads through the phone's own
+ * settings, and coming back from there neither unmounts nor refocuses the
+ * screen -- so without this the learner returns to a card that still says
+ * Pepe cannot reach them.
+ */
+export function watchPermission(onChange: (state: PermissionState) => void): () => void {
+  if (!supported) return () => {};
+  const sub = AppState.addEventListener('change', (next) => {
+    if (next === 'active') void permissionState().then(onChange);
+  });
+  return () => sub.remove();
+}
+
 function body(t: Strings, r: Reminder): string {
   switch (r.tone.kind) {
     case 'streak': return t.notification.streak(r.tone.due, r.tone.streak);

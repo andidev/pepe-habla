@@ -11,7 +11,7 @@ import { cue, effectsOn, isMuted, saveEffects, saveMuted } from '../feedback';
 import { useLanguage } from '../i18n/language';
 import { LANGUAGE_CHOICES } from '../i18n/strings';
 import {
-  askPermission, openSystemSettings, permissionState, refreshReminders,
+  askPermission, openSystemSettings, permissionState, refreshReminders, watchPermission,
   type PermissionState,
 } from '../notifications';
 import { loadReminderSettings, saveReminderSettings } from '../storage/reminderStore';
@@ -41,6 +41,11 @@ export default function Settings() {
     return () => { alive = false; };
   }, []);
 
+  // A grant made in the phone's own Settings app comes back to a screen that
+  // was only backgrounded, not remounted -- so the denied card needs its own
+  // way to notice the return.
+  useEffect(() => watchPermission(setPermission), []);
+
   const applyReminder = async (next: ReminderSettings) => {
     setReminder(next);
     await saveReminderSettings(next);
@@ -60,7 +65,7 @@ export default function Settings() {
 
   return (
     <Screen edges={['top', 'bottom']}>
-      {/* Scrolls because it has to: five cards plus Pepe overflow a small
+      {/* Scrolls because it has to: six cards plus Pepe overflow a small
           phone, and without this the Back button falls off the bottom with
           only the iOS edge swipe left as a way out -- which a child will not
           know about. flexGrow keeps Pepe centred in the space left over when
@@ -168,7 +173,7 @@ export default function Settings() {
                 </Text>
               </View>
               <Switch
-                value={reminder.enabled}
+                value={reminder.enabled && permission === 'granted'}
                 onValueChange={(on) => { void toggleReminder(on); }}
                 disabled={permission === 'denied'}
                 accessibilityLabel={t.settings.reminder}
@@ -200,6 +205,7 @@ export default function Settings() {
             {reminder.enabled && permission === 'granted' && (
               <ScrollView
                 horizontal
+                accessibilityRole="radiogroup"
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={{ gap: space.sm, paddingVertical: space.sm, paddingRight: space.lg }}
                 style={{ marginTop: space.md, paddingTop: space.md, borderTopWidth: 1.5, borderTopColor: colour.ground }}
