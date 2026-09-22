@@ -157,9 +157,11 @@ När ska Pepe väcka dig?
 
 Eleven half-hour pills from 05:00 to 10:00, horizontally scrollable, in the 2px
 ink outline with the selected one filled `cactus`. Taps only — no keyboard, no
-new dependency, and it renders on web like everything else. `08:00` is the
-default, as the original spec says. The pills are hidden while the switch is
-off, exactly as the effects row is hidden while sound is off.
+new dependency. Web has no notification queue, so `permission` there is
+`unsupported` and the whole card, pills included, is hidden — a card that can
+do nothing is worse than no card. `08:00` is the default, as the original spec
+says. The pills are hidden while the switch is off, exactly as the effects row
+is hidden while sound is off.
 
 **Off by default, and nothing is asked at launch.** Turning the switch on is
 what triggers the OS prompt, which is the only moment a learner has said they

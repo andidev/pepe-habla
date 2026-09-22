@@ -159,16 +159,28 @@ async function rebuild(language?: AppLanguage): Promise<void> {
 
     for (const r of plan) {
       const [y, m, d] = r.date.split('-').map(Number);
-      await Notifications.scheduleNotificationAsync({
-        content: { title: t.notification.title, body: body(t, r) },
-        trigger: {
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          // Local wall-clock, which is exactly the day todayISO() means. Any
-          // other construction and a reminder fires about yesterday's words.
-          date: new Date(y!, m! - 1, d!, r.hour, r.minute, 0, 0),
-          channelId: CHANNEL,
-        },
-      });
+      // Local wall-clock, which is exactly the day todayISO() means. Any
+      // other construction and a reminder fires about yesterday's words.
+      const date = new Date(y!, m! - 1, d!, r.hour, r.minute, 0, 0);
+      // planReminders works in whole minutes, so a slot can go stale between
+      // planning and scheduling -- e.g. today's 08:00 is still "later than
+      // now" at 07:59:59.8, but the clock can cross 08:00:00 before this
+      // iteration runs. The OS rejects a trigger in the past, so skip it.
+      if (date.getTime() <= Date.now()) continue;
+      try {
+        await Notifications.scheduleNotificationAsync({
+          content: { title: t.notification.title, body: body(t, r) },
+          trigger: {
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date,
+            channelId: CHANNEL,
+          },
+        });
+      } catch {
+        // One rejected morning must not cost the rest of the week: cancelling
+        // ran once, up front, so a bad day here should not stop later days
+        // from being queued.
+      }
     }
   } catch {
     // Queueing is best-effort. Practice is not.

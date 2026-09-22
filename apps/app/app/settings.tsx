@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -29,6 +29,23 @@ export default function Settings() {
   const [effects, setEffects] = useState(effectsOn());
   const [reminder, setReminder] = useState<ReminderSettings>(defaultReminderSettings());
   const [permission, setPermission] = useState<PermissionState>('unsupported');
+  const timeScrollRef = useRef<ScrollView>(null);
+  const pillsVisible = reminder.enabled && permission === 'granted';
+  const selectedTimeIndex = REMINDER_TIMES.findIndex(
+    (time) => time.hour === reminder.hour && time.minute === reminder.minute,
+  );
+
+  // The row mounts scrolled to offset 0, and the default time, 08:00, sits at
+  // index 6 -- off the right edge of the card on an ordinary phone. A row of
+  // grey pills with no green one in view reads as "nothing is selected", which
+  // is exactly wrong on the card that exists to show the learner their choice.
+  // Re-scroll whenever the row appears or the selection changes; the pill the
+  // learner just tapped is already under their finger, so this never fights
+  // their own scrolling.
+  useEffect(() => {
+    if (!pillsVisible || selectedTimeIndex < 0) return;
+    timeScrollRef.current?.scrollTo({ x: Math.max(0, selectedTimeIndex * 80 - 40), animated: false });
+  }, [pillsVisible, selectedTimeIndex]);
 
   useEffect(() => {
     let alive = true;
@@ -202,8 +219,9 @@ export default function Settings() {
               </View>
             )}
 
-            {reminder.enabled && permission === 'granted' && (
+            {pillsVisible && (
               <ScrollView
+                ref={timeScrollRef}
                 horizontal
                 accessibilityRole="radiogroup"
                 showsHorizontalScrollIndicator={false}
