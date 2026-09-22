@@ -32,6 +32,20 @@ function deviceLanguage(): AppLanguage {
 }
 
 /**
+ * The stored choice, for code that runs outside the React tree — the morning
+ * notification builds its body from it. Exported rather than duplicated so
+ * there is one place that knows the key.
+ */
+export async function loadLanguage(): Promise<AppLanguage> {
+  try {
+    const stored = await AsyncStorage.getItem(KEY);
+    return isAppLanguage(stored) ? stored : deviceLanguage();
+  } catch {
+    return deviceLanguage();
+  }
+}
+
+/**
  * The app language, for every screen at once.
  *
  * A context rather than a module variable, so changing it in settings
@@ -43,9 +57,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let alive = true;
-    AsyncStorage.getItem(KEY)
-      .then((stored) => { if (alive && isAppLanguage(stored)) setState(stored); })
-      .catch(() => {})
+    loadLanguage()
+      .then((stored) => { if (alive) setState(stored); })
       .finally(() => { if (alive) setReady(true); });
     return () => { alive = false; };
   }, []);
