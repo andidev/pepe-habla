@@ -36,3 +36,17 @@ export function todayISO(date: Date = new Date()): string {
   const d = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${d}`;
 }
+
+/**
+ * Is this an ISO date string the rest of this module can work on?
+ *
+ * The guard every loader needs: `toUTC` calls `.split` and a stored 20260921
+ * throws "iso.split is not a function" somewhere far away from the blob that
+ * caused it. A real calendar day is required, not just the right punctuation
+ * — `Date.UTC` rolls 2026-02-30 quietly forward into March, so a date nobody
+ * ever lived through would otherwise compare like any other.
+ */
+export function isISODate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  return fromUTC(toUTC(value)) === value;
+}
