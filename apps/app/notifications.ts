@@ -1,11 +1,16 @@
 import { AppState, Linking, Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
-import { planReminders, todayISO, type AppLanguage, type Reminder, type VocabDb } from '@pepe/core';
+import {
+  planReminders, todayISO,
+  type AppLanguage, type Reminder, type Track, type VocabDb,
+} from '@pepe/core';
 import { STRINGS, type Strings } from './i18n/strings';
 import { loadLanguage } from './i18n/language';
 import { loadProgress } from './storage/progressStore';
 import { loadReminderSettings } from './storage/reminderStore';
 import { loadStreak } from './storage/streakStore';
+import { loadTrack } from './storage/trackStore';
+import { WORDS } from './storage/vocabulary';
 
 /**
  * The morning reminder, and the only file in the app that knows what a device
@@ -135,8 +140,9 @@ async function rebuild(language?: AppLanguage): Promise<void> {
     // own switch still says on.
     if ((await permissionState()) !== 'granted') return;
 
-    const [db, streak, resolvedLanguage] = await Promise.all([
+    const [db, streak, resolvedLanguage, track] = await Promise.all([
       loadProgress(), loadStreak(), language ? Promise.resolve(language) : loadLanguage(),
+      loadTrack(),
     ]);
     const t = STRINGS[resolvedLanguage];
 
@@ -144,7 +150,7 @@ async function rebuild(language?: AppLanguage): Promise<void> {
     const now = new Date();
     const plan = planReminders({
       settings,
-      progress: practiceProgress(db),
+      progress: practiceProgress(db, track),
       streak,
       today: todayISO(now),
       nowMinutes: now.getHours() * 60 + now.getMinutes(),
@@ -202,10 +208,13 @@ export function startReminderRefresh(): () => void {
 }
 
 /**
- * The progress the count is drawn from.
+ * The selected track's progress, and only that.
  *
- * The spec says the selected track's, but phase 3b -- which adds tracks -- has
- * not landed. Until it does there is one ladder, so this is all of it. When
- * 3b merges this becomes a filter and nothing else changes.
+ * The number on the lock screen has to be the number on the home screen the
+ * learner lands on when they tap it -- home filters the same way. A count
+ * across both ladders would match neither.
  */
-const practiceProgress = (db: VocabDb) => Object.values(db.progress);
+function practiceProgress(db: VocabDb, track: Track) {
+  const mine = new Set(WORDS.filter((w) => w.track === track).map((w) => w.id));
+  return Object.values(db.progress).filter((p) => mine.has(p.id));
+}

@@ -15,6 +15,7 @@ import { cue } from '../../feedback';
 import { useLanguage } from '../../i18n/language';
 import { loadProgress } from '../../storage/progressStore';
 import { loadStreak } from '../../storage/streakStore';
+import { refreshReminders } from '../../notifications';
 import { loadTrack, saveTrack } from '../../storage/trackStore';
 import { WORDS } from '../../storage/vocabulary';
 import { colour, font, outline, radius, space } from '../../theme';
@@ -105,7 +106,14 @@ export default function Home() {
             return (
               <Pressable
                 key={id}
-                onPress={() => { cue('tap'); setTrack(id); void saveTrack(id); }}
+                // The morning's count follows the selected track, so switching
+                // ladders has to rebuild the queue -- otherwise a switch made in
+                // the evening wakes the learner with the other track's number.
+                onPress={() => {
+                  cue('tap');
+                  setTrack(id);
+                  void saveTrack(id).then(() => refreshReminders());
+                }}
                 accessibilityRole="button"
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={`${t.track[id]}, ${t.level.line(lvl, levelName(id, lvl) ?? '')}`}
