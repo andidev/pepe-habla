@@ -1,0 +1,6 @@
+[{"id":"el-medio-ambiente","es":"el medio ambiente","en":"the environment","sv":"miljön","pos":"noun","track":"words","level":6,"themes":["naturaleza"]},
+{"id":"la-basura","es":"la basura","en":"the garbage","sv":"soporna","pos":"noun","track":"words","level":6,"themes":["naturaleza"]},
+{"id":"la-contaminacion","es":"la contaminación","en":"the pollution","sv":"föroreningarna","pos":"noun","track":"words","level":6,"themes":["naturaleza","gobierno"]},
+{"id":"la-poblacion","es":"la población","en":"the population","sv":"befolkningen","pos":"noun","track":"words","level":6,"themes":["ciudad","gobierno"]},
+{"id":"el-barrio","es":"el barrio","en":"the neighborhood","sv":"kvarteret","pos":"noun","track":"words","level":6,"themes":["ciudad"]},
+{"id":"la-vivienda","es":"la vivienda","en":"the housing","sv":"bostaden","pos":"noun","track":"words","level":6,"themes":["casa","gobierno"]}]

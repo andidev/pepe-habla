@@ -19,8 +19,10 @@ async function pick(count: number): Promise<void> {
   const today = todayISO();
   const [words, db] = await Promise.all([store.loadWords(), store.loadProgress()]);
 
-  const selected = selectDaily(words, db.progress, today, count, mulberry32(seedFromDate(today)));
-  const questions = buildQuestions(selected, words, mulberry32(seedFromDate(today) ^ 0x5f3759df));
+  // Scoped to the words track, so a distractor is never a grammar card.
+  const trackWords = words.filter((w) => w.track === 'words');
+  const selected = selectDaily(trackWords, db.progress, today, count, mulberry32(seedFromDate(today)), 'words');
+  const questions = buildQuestions(selected, trackWords, mulberry32(seedFromDate(today) ^ 0x5f3759df));
 
   console.log(JSON.stringify({ date: today, questions }, null, 2));
 }

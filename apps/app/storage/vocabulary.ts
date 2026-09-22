@@ -1,21 +1,4 @@
-import type { Word } from '@pepe/core';
-import tier1 from '../../../data/seed/tier1.json';
-import tier2 from '../../../data/seed/tier2.json';
-import tier3 from '../../../data/seed/tier3.json';
-import manifest from '../assets/pepe/manifest.json';
-
-/**
- * The word list, bundled at build time, with Pepe's art attached.
- *
- * Words come from the repo rather than the network: the app is offline, and
- * the list only changes when a new build ships anyway.
- */
-const SEED = [...tier1, ...tier2, ...tier3] as Word[];
-
-export const WORDS: Word[] = SEED.map((w) => {
-  const sprite = (manifest.vocab as Record<string, string>)[w.id];
-  return sprite ? { ...w, sprite } : w;
-});
+export { WORDS } from './words';
 
 /**
  * Metro needs every asset path as a literal `require`, so the manifest cannot

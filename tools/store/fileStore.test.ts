@@ -76,11 +76,11 @@ describe('fileStore', () => {
   test('merges every seed file in the directory', async () => {
     await writeFile(
       join(root, 'data', 'seed', 'a.json'),
-      JSON.stringify([{ id: 'a', es: 'a', en: 'a', sv: 'a', pos: 'noun', tier: 1 }]),
+      JSON.stringify([{ id: 'a', es: 'a', en: 'a', sv: 'a', pos: 'noun', track: 'words', level: 1, themes: [] }]),
     );
     await writeFile(
       join(root, 'data', 'seed', 'b.json'),
-      JSON.stringify([{ id: 'b', es: 'b', en: 'b', sv: 'b', pos: 'verb', tier: 2 }]),
+      JSON.stringify([{ id: 'b', es: 'b', en: 'b', sv: 'b', pos: 'verb', track: 'words', level: 2, themes: [] }]),
     );
     const words = await fileStore(root).loadWords();
     assert.deepEqual(words.map((w) => w.id).sort(), ['a', 'b']);
@@ -89,7 +89,7 @@ describe('fileStore', () => {
   test('rejects duplicate ids across seed files', async () => {
     await writeFile(
       join(root, 'data', 'seed', 'c.json'),
-      JSON.stringify([{ id: 'a', es: 'dup', en: 'dup', sv: 'dup', pos: 'noun', tier: 1 }]),
+      JSON.stringify([{ id: 'a', es: 'dup', en: 'dup', sv: 'dup', pos: 'noun', track: 'words', level: 1, themes: [] }]),
     );
     await assert.rejects(() => fileStore(root).loadWords(), /Duplicate word id/);
   });

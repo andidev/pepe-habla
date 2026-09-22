@@ -13,10 +13,10 @@ export function fileStore(root: string): VocabStore {
   return {
     async loadWords(): Promise<Word[]> {
       const files = (await readdir(seedDir)).filter((f) => f.endsWith('.json')).sort();
-      const tiers = await Promise.all(
+      const perFile = await Promise.all(
         files.map(async (f) => JSON.parse(await readFile(join(seedDir, f), 'utf8')) as Word[]),
       );
-      const words = tiers.flat();
+      const words = perFile.flat();
 
       const seen = new Set<string>();
       for (const w of words) {
