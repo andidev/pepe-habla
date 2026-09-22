@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { emptyStreak, type Streak } from '@pepe/core';
+import { emptyStreak, isStreak, type Streak } from '@pepe/core';
 
 const KEY = 'pepe-habla/streak/v1';
 
@@ -7,13 +7,17 @@ export async function loadStreak(): Promise<Streak> {
   const raw = await AsyncStorage.getItem(KEY);
   if (raw === null) return emptyStreak();
   try {
-    return JSON.parse(raw) as Streak;
+    const parsed: unknown = JSON.parse(raw);
+    if (isStreak(parsed)) return parsed;
   } catch {
-    // Keep whatever we could not parse. Silently discarding months of
-    // practice is worse than any error we could show.
-    void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
-    return emptyStreak();
+    // Falls through to the same preservation path as a wrong-shaped blob.
   }
+  // Keep whatever we could not read. Silently discarding months of practice is
+  // worse than any error we could show. Parsing is not enough: a blob whose
+  // lastDate is a number parses fine and then throws inside daysBetween, days
+  // later and far from here, so a wrong shape is kept rather than trusted.
+  void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
+  return emptyStreak();
 }
 
 export async function saveStreak(streak: Streak): Promise<void> {

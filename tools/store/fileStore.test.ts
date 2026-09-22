@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileStore, projectRoot } from './fileStore.ts';
 import { emptyDb } from './store.ts';
-import { MAX_EASE, MIN_EASE } from '@pepe/core';
+import { isStoredVocabDb, MAX_EASE, MIN_EASE } from '@pepe/core';
 
 let root: string;
 
@@ -71,6 +71,18 @@ describe('fileStore', () => {
       assert.ok(p.knownOn === null || typeof p.knownOn === 'string', `${p.id}: knownOn`);
       assert.equal('box' in p, false, `${p.id} still carries a Leitner box`);
     }
+  });
+
+  test("the committed data/vocab.json is a blob loadProgress will accept", async () => {
+    // The app seeds from this file and does not validate it on the way in, so
+    // a hand edit that broke its shape would reach the phone unchallenged.
+    const seed: unknown = JSON.parse(await readFile(join(projectRoot, 'data', 'vocab.json'), 'utf8'));
+    assert.equal(isStoredVocabDb(seed), true);
+    // And the check has teeth: one bad date in one record condemns the blob.
+    const broken = JSON.parse(JSON.stringify(seed)) as { progress: Record<string, { dueOn: unknown }> };
+    const first = Object.keys(broken.progress)[0]!;
+    broken.progress[first]!.dueOn = 20260921;
+    assert.equal(isStoredVocabDb(broken), false);
   });
 
   test('merges every seed file in the directory', async () => {

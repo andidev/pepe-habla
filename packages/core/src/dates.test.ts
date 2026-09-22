@@ -1,6 +1,6 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { addDays, daysBetween, todayISO } from './dates.ts';
+import { addDays, daysBetween, isISODate, todayISO } from './dates.ts';
 
 describe('addDays', () => {
   test('adds within a month', () => {
@@ -37,5 +37,42 @@ describe('daysBetween', () => {
 describe('todayISO', () => {
   test('returns a YYYY-MM-DD string', () => {
     assert.match(todayISO(), /^\d{4}-\d{2}-\d{2}$/);
+  });
+});
+
+describe('isISODate', () => {
+  test('accepts a YYYY-MM-DD string', () => {
+    assert.equal(isISODate('2026-09-21'), true);
+  });
+
+  test('accepts a leap day that exists', () => {
+    assert.equal(isISODate('2028-02-29'), true);
+  });
+
+  test('rejects a number that looks like a date', () => {
+    // A stored blob holding 20260921 parses as JSON and then blows up inside
+    // daysBetween with "iso.split is not a function", far from the storage
+    // layer that let it through.
+    assert.equal(isISODate(20260921), false);
+  });
+
+  test('rejects null and undefined', () => {
+    assert.equal(isISODate(null), false);
+    assert.equal(isISODate(undefined), false);
+  });
+
+  test('rejects an unpadded date', () => {
+    assert.equal(isISODate('2026-9-1'), false);
+  });
+
+  test('rejects a date with a time on it', () => {
+    assert.equal(isISODate('2026-09-21T00:00:00.000Z'), false);
+  });
+
+  test('rejects a day the calendar does not have', () => {
+    // Date.UTC would silently roll 2026-02-30 forward to March, so a due date
+    // nobody ever lived through would still compare as a real one.
+    assert.equal(isISODate('2026-02-30'), false);
+    assert.equal(isISODate('2026-13-01'), false);
   });
 });

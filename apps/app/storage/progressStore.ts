@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { applyAnswer, freshProgress, migrateProgress, type VocabDb, type StoredVocabDb } from '@pepe/core';
+import { applyAnswer, freshProgress, isStoredVocabDb, migrateProgress, type VocabDb, type StoredVocabDb } from '@pepe/core';
 import type { AnswerRecord } from '@pepe/core';
 import seededProgress from '../../../data/vocab.json';
 
@@ -14,16 +14,19 @@ export async function loadProgress(): Promise<VocabDb> {
   const raw = await AsyncStorage.getItem(KEY);
   if (raw !== null) {
     try {
-      return migrateProgress(JSON.parse(raw) as StoredVocabDb);
+      const parsed: unknown = JSON.parse(raw);
+      if (isStoredVocabDb(parsed)) return migrateProgress(parsed);
     } catch {
-      // Keep whatever we could not parse. Silently discarding months of
-      // practice is worse than any error we could show.
-      void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
-      // The bundled seed predates the direction counters, so its shape does
-      // not satisfy VocabDb until migrateProgress() fills them in.
-      return migrateProgress(seededProgress as StoredVocabDb);
+      // Falls through to the same preservation path as a wrong-shaped blob.
     }
+    // Keep whatever we could not read. Silently discarding months of practice
+    // is worse than any error we could show. Parsing is not enough: a record
+    // whose dueOn is a number parses fine and then throws inside the
+    // scheduler, far from here, so a wrong shape is kept rather than trusted.
+    void AsyncStorage.setItem(`${KEY}/corrupt/${Date.now()}`, raw);
   }
+  // The bundled seed predates the direction counters, so its shape does not
+  // satisfy VocabDb until migrateProgress() fills them in.
   return migrateProgress(seededProgress as StoredVocabDb);
 }
 

@@ -1,5 +1,6 @@
 import type { Progress, VocabDb } from './types.ts';
 import { INITIAL_EASE } from './sm2.ts';
+import { isISODate } from './dates.ts';
 
 type Added = 'rightEsToEn' | 'rightEnToEs' | 'knownOn';
 type Scheduling = 'reps' | 'ease' | 'interval';
@@ -77,4 +78,49 @@ export function migrateProgress(db: StoredVocabDb): VocabDb {
   }
   const version = db?.version ?? 1;
   return { ...db, version, progress };
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/** Every number migrateProgress will default. Absent and null both heal. */
+const COUNTERS = [
+  'reps', 'ease', 'interval',
+  'seen', 'right', 'wrong',
+  'rightEsToEn', 'rightEnToEs',
+] as const;
+
+const healsToANumber = (value: unknown): boolean =>
+  value === undefined || value === null
+  || (typeof value === 'number' && Number.isFinite(value));
+
+const isStoredProgress = (value: unknown): value is StoredProgress => {
+  if (!isRecord(value)) return false;
+  if (typeof value['id'] !== 'string') return false;
+  if (!isISODate(value['dueOn'])) return false;
+  if (value['lastSeen'] !== null && !isISODate(value['lastSeen'])) return false;
+  if (value['knownOn'] !== undefined && value['knownOn'] !== null
+    && !isISODate(value['knownOn'])) return false;
+  // `box` is deliberately not checked: boxOf() already turns anything
+  // unrecognisable into the shakiest box.
+  return COUNTERS.every((field) => healsToANumber(value[field]));
+};
+
+/**
+ * Is this a blob migrateProgress can actually migrate?
+ *
+ * Parsing tells you the JSON was well formed, not that it holds progress.
+ * migrateProgress fills in what is missing, so this asks only about what it
+ * cannot fill in: the dates it carries over untouched, the id it keys on, and
+ * counters that are present but not numbers -- `"3" + 1` is `"31"` and
+ * `NaN >= 3` is false forever, so such a word could never become known and
+ * nothing would ever say why.
+ *
+ * One bad record condemns the blob. A loader that dropped the bad ones would
+ * be deciding, on its own, which months of practice to throw away.
+ */
+export function isStoredVocabDb(value: unknown): value is StoredVocabDb {
+  if (!isRecord(value) || value['version'] !== 1) return false;
+  const progress = value['progress'];
+  return isRecord(progress) && Object.values(progress).every(isStoredProgress);
 }
