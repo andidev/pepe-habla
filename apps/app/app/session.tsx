@@ -20,6 +20,7 @@ import { useLanguage } from '../i18n/language';
 import type { Strings } from '../i18n/strings';
 import { loadProgress, recordAnswers, saveProgress } from '../storage/progressStore';
 import { loadStreak, saveStreak } from '../storage/streakStore';
+import { loadTrack, saveTrack } from '../storage/trackStore';
 import { VOCAB_ART, WORDS } from '../storage/vocabulary';
 import { colour, font, radius, space } from '../theme';
 
@@ -37,7 +38,7 @@ export function buildRound(
   round: number,
   glossLang: GlossLanguage,
   exclude: ReadonlySet<string> = new Set(),
-  track: Track = 'words',
+  track: Track,
 ): Question[] {
   // Seeded by the day so a round is reproducible, and by the round number so a
   // second round is not the same ten words again.
@@ -65,6 +66,7 @@ export default function Session() {
   const [state, setState] = useState<SessionState | null>(null);
   const [db, setDb] = useState<VocabDb | null>(null);
   const [streak, setStreak] = useState<Streak | null>(null);
+  const [track, setTrack] = useState<Track>('words');
   const [toast, setToast] = useState<Toast | null>(null);
   const [playing, setPlaying] = useState(false);
   const shownAt = useRef(Date.now());
@@ -101,11 +103,15 @@ export default function Session() {
 
   useEffect(() => {
     (async () => {
-      const [loaded, s] = await Promise.all([loadProgress(), loadStreak()]);
+      const [loaded, s, chosen] = await Promise.all([loadProgress(), loadStreak(), loadTrack()]);
       setDb(loaded);
       setStreak(s);
+      setTrack(chosen);
       // The language cannot change mid-round: settings is not reachable from here.
-      setState(startSession(buildRound(loaded.progress, todayISO(), 1, g)));
+      // Built from `chosen`, not the `track` state — that setter has not
+      // applied yet, and building from the default would flash the wrong
+      // track's words before this resolves.
+      setState(startSession(buildRound(loaded.progress, todayISO(), 1, g, new Set(), chosen)));
     })();
   }, []);
 
@@ -211,8 +217,25 @@ export default function Session() {
       // Everything already answered this session is out, so another round is
       // genuinely new material rather than the same ten words reshuffled.
       const seen = new Set(state.results.map((r) => r.wordId));
-      const questions = buildRound(current.progress, todayISO(), state.round + 1, g, seen);
+      const questions = buildRound(current.progress, todayISO(), state.round + 1, g, seen, track);
       if (questions.length === 0) return;             // nothing left today
+      setState(reduce(state, { type: 'anotherRound', questions }));
+    };
+
+    const other: Track = track === 'words' ? 'grammar' : 'words';
+
+    const switchTrack = async () => {
+      cue('tap');
+      const current = db ?? await loadProgress();
+      // Nothing answered on this track has any bearing on the other one, so
+      // the exclude set is empty rather than `state.results`.
+      const questions = buildRound(current.progress, todayISO(), state.round + 1, g, new Set(), other);
+      // Nothing due or new on that track today. Leave everything as it was --
+      // flipping the remembered track here would silently swap the button's
+      // own label with no round to show for it.
+      if (questions.length === 0) return;
+      setTrack(other);
+      void saveTrack(other);
       setState(reduce(state, { type: 'anotherRound', questions }));
     };
 
@@ -254,6 +277,12 @@ export default function Session() {
               <Text style={{ fontFamily: font.displayHeavy, fontSize: 22, color: colour.surface }}>{t.summary.anotherRound}</Text>
             </View>
           </PressableCard>
+
+          <Pressable onPress={switchTrack} accessibilityRole="button" style={{ height: 52, width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+            <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>
+              {t.summary.switchTo(t.track[other])}
+            </Text>
+          </Pressable>
 
           <Pressable onPress={() => router.back()} accessibilityRole="button" style={{ height: 52, width: '100%', alignItems: 'center', justifyContent: 'center', marginTop: 10 }}>
             <Text style={{ fontFamily: font.bodyHeavy, fontSize: 16, color: colour.muted }}>{t.summary.doneForToday}</Text>
