@@ -18,6 +18,7 @@ import { Screen } from '../components/Screen';
 import { cue, effectsOn, isMuted, say, stopSpeaking, type Voice } from '../feedback';
 import { useLanguage } from '../i18n/language';
 import type { Strings } from '../i18n/strings';
+import { refreshReminders } from '../notifications';
 import { loadProgress, recordAnswers, saveProgress } from '../storage/progressStore';
 import { loadStreak, saveStreak } from '../storage/streakStore';
 import { loadTrack, saveTrack } from '../storage/trackStore';
@@ -191,6 +192,9 @@ export default function Session() {
       const grew = next.days > streak.days;
       setStreak(next);
       await saveStreak(next);
+      // The day's round is done, so tomorrow's morning is the next one worth
+      // queueing — and today's, if it has not fired yet, has to go.
+      void refreshReminders();
       // A longer streak is worth more noise than finishing a routine round.
       cue(grew && next.days % 5 === 0 ? 'streak' : 'complete');
     })();

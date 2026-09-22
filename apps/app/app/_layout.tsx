@@ -11,6 +11,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Welcome } from '../components/Welcome';
 import { loadSoundSettings, prepareAudio, prepareSpeech } from '../feedback';
 import { LanguageProvider, useLanguage } from '../i18n/language';
+import { startReminderRefresh } from '../notifications';
 import { colour } from '../theme';
 
 // Both must run in the global scope, before the first render.
@@ -25,6 +26,11 @@ export default function RootLayout() {
   const hidden = useRef(false);
 
   useEffect(() => { void prepareAudio(); void prepareSpeech(); void loadSoundSettings(); }, []);
+
+  // Re-queue on launch and on every return to the app. Progress may have moved
+  // in a round we already forgot about, and the queue would otherwise promise a
+  // streak that is days dead.
+  useEffect(() => startReminderRefresh(), []);
 
   // A font that fails to load must not strand us on the splash forever; the
   // fallback face is a far better outcome than a screen that never advances.
