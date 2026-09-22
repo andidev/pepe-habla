@@ -110,6 +110,23 @@ touched no core, and there is exactly one caller. Took the caller-side filter pl
 the doc comment. *Cost if wrong:* a future second caller could repeat the mistake, with only the
 doc comment standing between.
 
+## Verification
+
+270 tests and typecheck clean at both roots, at every commit. The `optionMeaning` fix was
+proved by reproduction before and after, on two fixture cards sharing `es: 'como'` across
+tracks:
+
+```
+un-filtered pool (WORDS, both tracks): as, like
+filtered pool (question.word.track only): I eat
+```
+
+The re-reviewer re-ran both surviving `duplicates.ts` mutations itself rather than trusting
+the fixer's report — the third vacuous fixture on this branch had made that claim worth
+checking — and confirmed the new test fails under each, with the file restored byte-identical.
+It also confirmed the hoisted filter sits after the `if (!question) return` guard and is a
+plain `const`, not a hook, so there is no hook-ordering hazard.
+
 ## Deferred findings
 
 **`optionMeaning` should take the track rather than trust its caller.** The fix above is correct
