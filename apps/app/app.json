@@ -42,7 +42,14 @@
           "backgroundColor": "#FBF6EC"
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/android-icon-monochrome.png",
+          "color": "#2E7D5B"
+        }
+      ]
     ]
   }
 }
