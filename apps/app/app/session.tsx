@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, Image, Pressable, Text, View } from 'react-native';
+import { Image, Pressable, Text, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
 import {
@@ -15,7 +15,7 @@ import { Pepe } from '../components/Pepe';
 import { PressableCard } from '../components/PressableCard';
 import { PromptWord } from '../components/PromptWord';
 import { Screen } from '../components/Screen';
-import { cue, effectsOn, isMuted, say, stopSpeaking, type Voice } from '../feedback';
+import { cue, effectsOn, isMuted, onBackgrounded, say, stopSpeaking, type Voice } from '../feedback';
 import { useLanguage } from '../i18n/language';
 import type { Strings } from '../i18n/strings';
 import { refreshReminders } from '../notifications';
@@ -166,11 +166,9 @@ export default function Session() {
 
   // Leaving mid-round must not cost the learner the answers they gave.
   useEffect(() => {
-    const sub = AppState.addEventListener('change', (next) => {
-      if (next !== 'active') void persistAnswers();
-    });
+    const stop = onBackgrounded(() => void persistAnswers());
     return () => {
-      sub.remove();
+      stop();
       void persistAnswers();                        // also on unmount, e.g. the X
     };
   }, [persistAnswers]);
