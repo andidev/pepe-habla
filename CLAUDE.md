@@ -24,8 +24,6 @@ logic in `packages/core`.
   directly — there is no build step).
 - Only `apps/app/components/Screen.tsx`, `apps/app/feedback.ts` and
   `apps/app/notifications.ts` may branch on platform or touch device APIs.
-  (`apps/app/app/session.tsx` also imports `AppState`, to persist a round
-  backgrounded mid-session — a pre-existing exception, not a new one to copy.)
 - Palette only through `apps/app/theme.ts`. 2px ink borders, hard offset
   shadows, never blurred. Touch targets ≥ 44px. Interface copy goes through
   `apps/app/i18n/strings.ts`.

@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 import * as Haptics from 'expo-haptics';
 import * as Speech from 'expo-speech';
+import { AppState } from 'react-native';
 
 const MUTE_KEY = 'pepe-habla/muted/v1';
 const EFFECTS_KEY = 'pepe-habla/effects/v1';
@@ -257,4 +258,19 @@ export async function saveEffects(next: boolean): Promise<void> {
   } catch {
     // As above.
   }
+}
+
+/**
+ * Call `fn` whenever the app leaves the foreground, and return the
+ * unsubscribe.
+ *
+ * A screen with something to save before the learner switches away gets it
+ * through this, and uses the return value straight as an effect cleanup, so no
+ * screen has to import `AppState` and know it is running on a device.
+ */
+export function onBackgrounded(fn: () => void): () => void {
+  const sub = AppState.addEventListener('change', (next) => {
+    if (next !== 'active') fn();
+  });
+  return () => sub.remove();
 }
