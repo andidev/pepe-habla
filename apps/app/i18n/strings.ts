@@ -77,8 +77,21 @@ export interface Strings {
     soundHint: string;
     effects: string;
     effectsHint: string;
+    reminder: string;
+    reminderHint: string;
+    reminderDenied: string;
+    reminderOpenSettings: string;
     about: (words: number) => string;
     back: string;
+  };
+  /** The morning notification. Written here, fired from notifications.ts. */
+  notification: {
+    /** Pepe's own voice — Spanish in every language, like the greetings. */
+    title: string;
+    streak: (due: number, streak: number) => string;
+    due: (due: number) => string;
+    streakOnly: (streak: number) => string;
+    fresh: string;
   };
 }
 
@@ -218,8 +231,20 @@ const es: Strings = {
     soundHint: 'La vibración sigue funcionando aunque lo apagues.',
     effects: 'Efectos y vibración',
     effectsHint: 'Los sonidos de acierto y error. La voz siempre se oye.',
+    reminder: 'Recordatorio',
+    reminderHint: '¿A qué hora te despierta Pepe?',
+    reminderDenied: 'Pepe no puede avisarte. Las notificaciones están apagadas para Pepe Habla en los ajustes del teléfono.',
+    reminderOpenSettings: 'Abrir ajustes',
     about: (n) => `${n} palabras en español mexicano. Pepe es un perro callejero de la Ciudad de México.`,
     back: 'Volver',
+  },
+  notification: {
+    title: '¡Órale!',
+    streak: (n, d) =>
+      `${n} ${n === 1 ? 'palabra' : 'palabras'} por repasar — no pierdas tu racha de ${d} ${d === 1 ? 'día' : 'días'}.`,
+    due: (n) => `${n} ${n === 1 ? 'palabra te espera' : 'palabras te esperan'}. Pepe te extraña.`,
+    streakOnly: (d) => `Nada que repasar, pero no rompas tu racha de ${d} ${d === 1 ? 'día' : 'días'}.`,
+    fresh: 'Nada que repasar. ¿Aprendemos palabras nuevas?',
   },
 };
 
@@ -359,8 +384,19 @@ const sv: Strings = {
     soundHint: 'Vibrationen fungerar även när ljudet är av.',
     effects: 'Ljudeffekter och vibration',
     effectsHint: 'Pling när det är rätt, surr när det är fel. Rösten hörs alltid.',
+    reminder: 'Påminnelse',
+    reminderHint: 'När ska Pepe väcka dig?',
+    reminderDenied: 'Pepe kan inte nå dig. Notiser är avstängda för Pepe Habla i telefonens inställningar.',
+    reminderOpenSettings: 'Öppna inställningar',
     about: (n) => `${n} ord på mexikansk spanska. Pepe är en gatuhund från Mexico City.`,
     back: 'Tillbaka',
+  },
+  notification: {
+    title: '¡Órale!',
+    streak: (n, d) => `${n} ord att repetera — behåll din svit på ${d} ${d === 1 ? 'dag' : 'dagar'}.`,
+    due: (n) => `${n} ord väntar. Pepe saknar dig.`,
+    streakOnly: (d) => `Inget att repetera, men bryt inte din svit på ${d} ${d === 1 ? 'dag' : 'dagar'}.`,
+    fresh: 'Inget att repetera. Ska vi lära oss nya ord?',
   },
 };
 
@@ -500,8 +536,19 @@ const en: Strings = {
     soundHint: 'Vibration still works when sound is off.',
     effects: 'Sound effects and vibration',
     effectsHint: 'The right and wrong sounds. The voice is always heard.',
+    reminder: 'Reminder',
+    reminderHint: 'When should Pepe wake you?',
+    reminderDenied: "Pepe can't reach you. Notifications are off for Pepe Habla in your phone's settings.",
+    reminderOpenSettings: 'Open settings',
     about: (n) => `${n} words of Mexican Spanish. Pepe is a street dog from Mexico City.`,
     back: 'Back',
+  },
+  notification: {
+    title: '¡Órale!',
+    streak: (n, d) => `${n} ${n === 1 ? 'word is' : 'words are'} due — keep your ${d}-day streak.`,
+    due: (n) => `${n} ${n === 1 ? 'word is' : 'words are'} waiting. Pepe misses you.`,
+    streakOnly: (d) => `Nothing to review — but don't break your ${d}-day streak.`,
+    fresh: 'Nothing due. Want to learn some new words?',
   },
 };
 
