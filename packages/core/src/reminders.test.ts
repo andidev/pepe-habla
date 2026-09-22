@@ -2,7 +2,15 @@ import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   defaultReminderSettings, REMINDER_TIMES, reminderSlots, reminderTimeLabel, reminderTone,
+  planReminders,
 } from './reminders.ts';
+import type { Progress } from './types.ts';
+
+/** Only `dueOn` matters to a plan; the rest is filler so the type is satisfied. */
+const due = (id: string, dueOn: string): Progress => ({
+  id, reps: 0, ease: 2.5, interval: 0, seen: 1, right: 1, wrong: 0,
+  rightEsToEn: 0, rightEnToEs: 0, knownOn: null, lastSeen: null, dueOn,
+});
 
 const at8 = { enabled: true, hour: 8, minute: 0 };
 const noStreak = { days: 0, lastDate: null };
@@ -129,5 +137,75 @@ describe('reminderTone', () => {
 
   test('a streak of zero days is no streak, whatever the date says', () => {
     assert.equal(reminderTone(5, { days: 0, lastDate: '2026-09-20' }, '2026-09-21').kind, 'due');
+  });
+});
+
+describe('planReminders', () => {
+  const at8 = { enabled: true, hour: 8, minute: 0 };
+
+  const progress = [
+    due('a', '2026-09-20'),   // overdue
+    due('b', '2026-09-21'),   // due today
+    due('c', '2026-09-23'),   // due in two days
+    due('d', '2026-10-30'),   // far off
+  ];
+
+  test('an off switch plans nothing', () => {
+    assert.deepEqual(
+      planReminders({
+        settings: { ...at8, enabled: false }, progress,
+        streak: { days: 9, lastDate: '2026-09-20' },
+        today: '2026-09-21', nowMinutes: 7 * 60,
+      }),
+      [],
+    );
+  });
+
+  test("today's count is what home will show when the learner taps it", () => {
+    const plan = planReminders({
+      settings: at8, progress,
+      streak: { days: 9, lastDate: '2026-09-20' },
+      today: '2026-09-21', nowMinutes: 7 * 60, horizon: 1,
+    });
+    assert.deepEqual(plan, [{
+      date: '2026-09-21', hour: 8, minute: 0,
+      tone: { kind: 'streak', due: 2, streak: 9 },
+    }]);
+  });
+
+  test('the count grows over the week as more words come due', () => {
+    const plan = planReminders({
+      settings: at8, progress,
+      streak: { days: 9, lastDate: '2026-09-20' },
+      today: '2026-09-21', nowMinutes: 7 * 60, horizon: 4,
+    });
+    assert.deepEqual(plan.map((r) => [r.date, r.tone]), [
+      ['2026-09-21', { kind: 'streak', due: 2, streak: 9 }],
+      ['2026-09-22', { kind: 'due', due: 2 }],
+      ['2026-09-23', { kind: 'due', due: 3 }],
+      ['2026-09-24', { kind: 'due', due: 3 }],
+    ]);
+  });
+
+  test('only the nearest morning may claim the streak', () => {
+    const plan = planReminders({
+      settings: at8, progress,
+      streak: { days: 9, lastDate: '2026-09-21' },   // round done today
+      today: '2026-09-21', nowMinutes: 7 * 60, horizon: 3,
+    });
+    // Today is skipped entirely; tomorrow inherits the live streak.
+    assert.deepEqual(plan.map((r) => [r.date, r.tone.kind]), [
+      ['2026-09-22', 'streak'],
+      ['2026-09-23', 'due'],
+    ]);
+  });
+
+  test('a learner with no progress at all is invited, not nagged', () => {
+    const plan = planReminders({
+      settings: at8, progress: [],
+      streak: { days: 0, lastDate: null },
+      today: '2026-09-21', nowMinutes: 7 * 60, horizon: 1,
+    });
+    assert.deepEqual(plan[0]?.tone, { kind: 'fresh' });
   });
 });

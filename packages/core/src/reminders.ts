@@ -10,6 +10,7 @@
  */
 import { addDays, daysBetween } from './dates.ts';
 import type { Streak } from './streak.ts';
+import type { Progress } from './types.ts';
 
 export interface ReminderSettings {
   enabled: boolean;
@@ -120,4 +121,41 @@ export function reminderTone(due: number, streak: Streak, date: string): Reminde
     return alive ? { kind: 'streak', due, streak: streak.days } : { kind: 'due', due };
   }
   return alive ? { kind: 'streakOnly', streak: streak.days } : { kind: 'fresh' };
+}
+
+export interface Reminder {
+  /** Local ISO date, as `todayISO()` means it. */
+  date: string;
+  hour: number;
+  minute: number;
+  tone: ReminderTone;
+}
+
+/**
+ * Words due on or before `date`. Words never introduced have no Progress and
+ * are not counted: they are new, not due.
+ */
+const dueBy = (progress: readonly Progress[], date: string): number =>
+  progress.filter((p) => p.dueOn <= date).length;
+
+/**
+ * Every morning worth queueing, in date order, soonest first.
+ *
+ * `progress` is the selected track's, already filtered by the caller -- the
+ * count on the lock screen has to be the count on the home screen the learner
+ * lands on. A future day's count is honest if the learner does nothing, and
+ * the whole plan is re-queued the moment they don't.
+ */
+export function planReminders(input: {
+  settings: ReminderSettings;
+  progress: readonly Progress[];
+  streak: Streak;
+  today: string;
+  nowMinutes: number;
+  horizon?: number;
+}): Reminder[] {
+  return reminderSlots(input).map((slot) => ({
+    ...slot,
+    tone: reminderTone(dueBy(input.progress, slot.date), input.streak, slot.date),
+  }));
 }
