@@ -77,11 +77,14 @@ describe('collisions', () => {
   });
 
   test('reports both tracks when each has its own collision', () => {
+    // Input order is words-then-grammar, deliberately the reverse of the
+    // expected (sorted) order below: Map insertion order alone would put
+    // `words` first, so this only passes if `collisions` actually sorts.
     const words = [
-      card('g1', 'grammar', 'vino', 'he came', 'han kom'),
-      card('g2', 'grammar', 'vino2', 'he came', 'han anlände'),
       card('w1', 'words', 'el vino', 'the wine', 'vinet'),
       card('w2', 'words', 'la copa', 'the wine', 'glaset'),
+      card('g1', 'grammar', 'vino', 'he came', 'han kom'),
+      card('g2', 'grammar', 'vino2', 'he came', 'han anlände'),
     ];
     assert.deepEqual(collisions(words, 'en'), [
       { track: 'grammar', text: 'he came', ids: ['g1', 'g2'] },
