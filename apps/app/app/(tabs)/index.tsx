@@ -51,7 +51,6 @@ function Stat({ value, label, tint }: { value: string; label: string; tint?: str
 export default function Home() {
   const router = useRouter();
   const { t } = useLanguage();
-  const [known, setKnown] = useState(0);
   const [streak, setStreak] = useState<Streak>({ days: 0, lastDate: null });
   const [track, setTrack] = useState<Track>('words');
   const [progress, setProgress] = useState<Record<string, Progress>>({});
@@ -60,13 +59,7 @@ export default function Home() {
   useFocusEffect(useCallback(() => {
     (async () => {
       const [db, s, chosen] = await Promise.all([loadProgress(), loadStreak(), loadTrack()]);
-      const all = Object.values(db.progress);
       setTrack(chosen);
-      // The same measure the stats screen calls Conocidas: three correct in
-      // *each* direction. It used to be box >= 4 here, which is a different,
-      // looser thing wearing the same label. The looser count returns in 3b
-      // as `dominadas`, on the level card, where it is the unlock gate.
-      setKnown(all.filter((p) => isKnown(p)).length);
       setStreak(s);
       setProgress(db.progress);
     })();
@@ -77,6 +70,13 @@ export default function Home() {
   const today = todayISO();
   const mine = new Set(WORDS.filter((w) => w.track === track).map((w) => w.id));
   const due = Object.values(progress).filter((p) => mine.has(p.id) && isDue(p, today)).length;
+  // The same measure the stats screen calls Conocidas: three correct in
+  // *each* direction. It used to be box >= 4 here, which is a different,
+  // looser thing wearing the same label. The looser count returns in 3b as
+  // `dominadas`, on the level card, where it is the unlock gate. Scoped to
+  // `mine` like `due`, so switching track updates this tile immediately
+  // instead of showing the other track's count under this one's labels.
+  const known = Object.values(progress).filter((p) => mine.has(p.id) && isKnown(p)).length;
   const waiting = due > 0 ? t.home.waiting(due) : t.home.caughtUp;
   const open = unlockedThrough(WORDS, progress, track);
   const stats = levelStats(WORDS, progress, track, open);

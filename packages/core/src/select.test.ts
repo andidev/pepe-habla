@@ -188,12 +188,26 @@ describe('theme-clustered introduction', () => {
   });
 
   test('a lower level is exhausted before a higher one is touched', () => {
-    const l1 = [word('a1', 1, ['comida'])];
-    const l2 = [word('b1', 2, ['ropa'])];
-    const progress: Record<string, Progress> = { a1: prog('a1', 3, '2026-12-01') };
-    // Level 1 is 100% dominada so level 2 is open, but a1 is already answered;
-    // nothing unanswered remains in level 1, so b1 is next.
-    const picked = selectDaily([...l1, ...l2], progress, '2026-09-19', 5, rng(), 'words');
-    assert.deepEqual(picked.map((w) => w.id), ['b1']);
+    // Level 1 is 12 of 17 dominada, so level 2 is open. Level 1's five
+    // remaining unseen cards split across two themes -- one 'comida', four
+    // 'ropa' -- and level 2 holds three unseen cards spanning those same two
+    // themes. Whichever of the two themes `cluster` happens to pick from
+    // level 1's first card, level 2 has a card in that same theme: a `cluster`
+    // that lets a theme match reach across levels will prefer that level-2
+    // card over the *other* level-1 theme's card, even though level 1 is not
+    // exhausted. The round must stay entirely at level 1 regardless.
+    const done = Array.from({ length: 12 }, (_, i) => word(`done${i}`, 1));
+    const l1a = [word('x1', 1, ['comida'])];
+    const l1b = Array.from({ length: 4 }, (_, i) => word(`y${i}`, 1, ['ropa']));
+    const l2 = [
+      word('x2a', 2, ['comida']), word('x2b', 2, ['comida']),
+      word('y2a', 2, ['ropa']),
+    ];
+    const progress: Record<string, Progress> = {};
+    done.forEach((w) => { progress[w.id] = prog(w.id, 3, '2026-12-01'); });
+    const picked = selectDaily(
+      [...done, ...l1a, ...l1b, ...l2], progress, '2026-09-19', 5, rng(), 'words',
+    );
+    assert.deepEqual(picked.map((w) => w.level), [1, 1, 1, 1, 1]);
   });
 });

@@ -72,7 +72,8 @@ function cluster(fresh: readonly Word[], want: number): Word[] {
   const theme = fresh[0]!.themes[0];
   if (theme === undefined) return fresh.slice(0, want);
 
-  const sameTheme = fresh.filter((w) => w.themes.includes(theme));
-  const rest = fresh.filter((w) => !w.themes.includes(theme));
+  const lowest = fresh[0]!.level;
+  const sameTheme = fresh.filter((w) => w.level === lowest && w.themes.includes(theme));
+  const rest = fresh.filter((w) => !(w.level === lowest && w.themes.includes(theme)));
   return [...sameTheme, ...rest].slice(0, want);
 }

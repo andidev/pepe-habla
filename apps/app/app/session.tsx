@@ -37,18 +37,22 @@ export function buildRound(
   today: string,
   round: number,
   glossLang: GlossLanguage,
-  exclude: ReadonlySet<string> = new Set(),
+  exclude: ReadonlySet<string>,
   track: Track,
 ): Question[] {
   // Seeded by the day so a round is reproducible, and by the round number so a
   // second round is not the same ten words again.
   const rng = mulberry32(seedFromDate(today) ^ (round * 0x9e3779b9));
+  // Scoped to the drawn track first, so distractors can never be a card from
+  // the other track — with 100 grammar forms all tagged verb, a words
+  // question could otherwise be answered by shape alone.
+  const trackWords = WORDS.filter((w) => w.track === track);
   // Words already answered this session are out — the seed alone cannot
   // separate rounds when ten or fewer words are due, because then every due
   // word is selected no matter what the rng says.
-  const pool = exclude.size === 0 ? WORDS : WORDS.filter((w) => !exclude.has(w.id));
+  const pool = exclude.size === 0 ? trackWords : trackWords.filter((w) => !exclude.has(w.id));
   const selected = selectDaily(pool, progress, today, ROUND_SIZE, rng, track);
-  return buildQuestions(selected, WORDS, rng, glossLang);
+  return buildQuestions(selected, pool, rng, glossLang);
 }
 
 const voiceFor = (s: Spoken, g: GlossLanguage): Voice => (s === 'es' ? 'es' : g);

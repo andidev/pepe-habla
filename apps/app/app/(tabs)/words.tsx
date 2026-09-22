@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, ScrollView, Text, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -43,6 +43,11 @@ export default function Words() {
     return () => { alive = false; };
   }, []));
 
+  // A theme id from one track means nothing on the other (presente vs.
+  // comida), so every writer of `track` -- this focus effect included, not
+  // just the in-screen toggle -- must reset it.
+  useEffect(() => { setTheme(null); }, [track]);
+
   const rows = useMemo<Row[]>(() => {
     const today = todayISO();
     // Only words actually practised: a list of 384 untouched entries tells the
@@ -82,7 +87,6 @@ export default function Words() {
   const selectTrack = (id: Track) => {
     cue('tap');
     setTrack(id);
-    setTheme(null);
   };
 
   const selectFilter = (key: Filter) => {
